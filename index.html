@@ -1,0 +1,174 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS # To allow cross-origin requests from Node.js backend
+import google.generativeai as genai
+import os
+import json # For loading prompt templates
+
+app = Flask(__name__)
+CORS(app) # Enable CORS
+
+# Configure Google Gemini API (replace with your actual API key)
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+
+# Initialize Gemini model (choose appropriate model, e.g., gemini-pro)
+model = genai.GenerativeModel('gemini-pro')
+
+# In-memory session for demonstration (replace with a proper database later)
+# Stores chat history per unique AI session ID
+sessions = {} # { aiSessionId: [ {'role': 'user', 'parts': [message]}, {'role': 'model', 'parts': [reply]} ], ... }
+
+def generate_ai_response(user_id, companion_id, companion_name, gender, relation, natures, user_message, ai_session_id, conversation_history_from_db):
+    global sessions
+
+    # Retrieve or initialize chat session
+    if ai_session_id not in sessions:
+        # If AI session ID not found or new, create a new chat session for Gemini
+        sessions[ai_session_id] = model.start_chat(history=[])
+        print(f"New chat session started for {ai_session_id}")
+
+    # Get the chat object for the current session
+    chat = sessions[ai_session_id]
+
+    # --- Dynamic Prompt Engineering for Realism ---
+    # This is CRITICAL for realistic persona.
+    # Construct a system/initial message that defines the persona
+    # based on chosen features.
+
+    # Base Persona Description
+    persona_description = f"""
+    You are an AI companion named '{companion_name}'.
+    You are designed to sound and behave exactly like a {gender} {relation}.
+    Your core purpose is to provide empathetic support, guidance, and conversation to the user,
+    making them feel as if they are talking to their actual {relation}.
+
+    **Your Personality/Nature:** You are a combination of the following traits: {', '.join(natures)}.
+
+    **Important Behavioral Guidelines:**
+    1.  **Empathy and Relational Tone:** Always speak in a tone appropriate for a {relation} with the selected natures. Use terms of endearment or familial language naturally (e.g., "my child," "son," "daughter," "sweetie," "beta," "bachche" if appropriate for cultural context).
+    2.  **Avoid AI-like phrasing:** NEVER say "As an AI model," "I'm here to support you," or similar generic AI responses.
+    3.  **Contextual Memory:** Remember previous turns in the conversation. Refer back to earlier points if relevant.
+    4.  **Realistic Dialogue:** Your responses should feel organic, not like a pre-programmed script. If the user expresses sadness, show genuine concern.
+    5.  **Handling "Bad Day" vs. "Not Feeling Good":** Differentiate between general malaise and specific events. Probe gently but genuinely.
+        * If "not feeling good," ask about specific symptoms or what's bothering them.
+        * If "bad day," ask what specifically happened.
+    6.  **Nuanced Traits Implementation:**
+        * **"A Little Bit Stern/Strict":** If a user is being self-defeating, you might gently but firmly challenge them or push them towards a solution, like a concerned {relation} would. (e.g., "Enough of that talk, now tell me what happened so we can fix it.")
+        * **"Doesn't Always Agree Eagerly":** If the user makes an extreme statement, you might respond with a slightly different perspective or ask them to elaborate, showing you're listening but not just mirroring. (e.g., User: "Everything is hopeless." AI: "It feels that way right now, doesn't it? But 'hopeless' is a strong word. What specifically is weighing on you so heavily?")
+        * **"Direct/Blunt":** Get straight to the point while still being caring.
+    7.  **Crisis Intervention:** If the user expresses direct suicidal ideation or intent to harm themselves/others (e.g., "I want to die," "I'm going to hurt myself"), you MUST interrupt the persona and provide immediate crisis resources:
+        "I hear you, and it sounds like you're going through immense pain right now. Please know you're not alone. I'm an AI, and while I can listen, I can't provide the help you might need in this moment. Please reach out to a professional immediately. Here are some resources that can help:"
+        "[List of crisis hotlines, e.g., National Suicide Prevention Lifeline: 988, Crisis Text Line: Text HOME to 741741, Local Emergency Services: [Your Country's Emergency Number]]"
+        "Your life matters, and there are people who want to help you through this."
+        (Then, ideally, stop further AI chat interaction until the user indicates safety, or redirect).
+    8. **Language Adaptation:** Pay attention to the user's language style, common phrases, and level of formality. Subtly mirror it to make the conversation feel more natural.
+
+    Now, respond to the user's message as a {gender} {relation} with these qualities.
+    """
+
+    # Append user message to conversation history
+    # For Gemini's chat.send_message, you typically send just the next message.
+    # The history is managed internally by the chat object.
+    # However, for initial context setting, you might need to add a "system" role,
+    # but Gemini's models often use 'user' and 'model' roles.
+    # For complex persona setting, an initial 'user' + 'model' pair can implicitly set the tone.
+
+    # Let's use `generate_content` for more control over initial context,
+    # or leverage `start_chat` with a pre-defined history.
+
+    # Approach using `start_chat` with a dynamic system prompt embedded in the initial history
+    # (This is a simplified approach, actual LLM interaction might need more sophisticated prompt chaining)
+
+    # Build prompt for current turn.
+    # For Gemini, the 'system' role is not directly exposed as in some other LLMs.
+    # We model the persona as an initial 'user' followed by 'model' response that sets the tone.
+
+    # Example: Simulating a system message by priming the model
+    # The actual way to manage this might involve sending the persona_description
+    # as a preamble to each `generate_content` call or using tools/functions
+    # if the LLM supports it. For simple chat.send_message, context needs to be
+    # maintained carefully.
+
+    try:
+        # Send message to the Gemini model
+        # Gemini chat.send_message maintains history.
+        # We ensure the persona is 'active' for each turn.
+        # For deeper persona embedding, the persona_description needs to be
+        # part of the history or as a "pre-prompt" before each user input.
+
+        # Current Gemini `chat.send_message` handles history.
+        # For strong persona, you might have to prefix user messages with the persona reminder
+        # or fine-tune the model. A common method is to use a "system message" at the start
+        # of each conversation.
+
+        # A more robust way to incorporate persona for each turn if not explicitly supported:
+        # We create a new `GenerativeModel` instance with initial safety settings
+        # and then use `generate_content` for a single turn with full context.
+        # This ensures the persona prompt is considered every time.
+
+        # --- Crisis Detection (simple keyword check) ---
+        crisis_keywords = ['suicide', 'kill myself', 'end it all', 'die', 'can\'t go on', 'worthless', 'self-harm']
+        if any(keyword in user_message.lower() for keyword in crisis_keywords):
+            crisis_response = (
+                "I hear you, and it sounds like you're going through immense pain right now. "
+                "Please know you're not alone. I'm an AI, and while I can listen, I can't provide "
+                "the professional help you might need in this moment. Please reach out to a professional immediately. "
+                "Here are some resources that can help:\n\n"
+                "**National Suicide Prevention Lifeline (US):** 988\n"
+                "**Crisis Text Line:** Text HOME to 741741\n"
+                "**Aasra (India):** +91 22 2754 6669\n"
+                "**Your Local Emergency Services:** [Find your country's emergency number, e.g., 911 in US, 112 in Europe, 100 in India]\n\n"
+                "Your life matters, and there are people who want to help you through this. Please seek help."
+            )
+            return crisis_response, ai_session_id # Return crisis response directly
+
+        # Combine system prompt with history and current message
+        # The 'history' passed to start_chat would be retrieved from your database
+        # including the initial persona setting message.
+
+        # Example: Setting initial chat history for persona
+        if not chat.history:
+            # This ensures the persona is set only once at the beginning of the chat
+            # or when a new session starts.
+            # Use a specific "prime" message to set the AI's tone and role.
+            chat.send_message(persona_description + "\n\nHello, how can I help you today?")
+            # This is a bit of a hack; better would be to train the model on these personas.
+            # For real-time, the persona_description must inform every generation.
+
+        # Now send the user's actual message
+        response = chat.send_message(user_message)
+        ai_reply = response.text
+
+        return ai_reply, ai_session_id
+
+    except Exception as e:
+        print(f"Error in AI generation: {e}")
+        return "I'm sorry, I'm having trouble understanding right now. Can you please rephrase?", ai_session_id
+
+@app.route('/api/chat', methods=['POST'])
+def chat_with_ai():
+    data = request.json
+    user_id = data.get('userId')
+    companion_id = data.get('companionId')
+    companion_name = data.get('companionName')
+    gender = data.get('gender')
+    relation = data.get('relation')
+    natures = data.get('natures', [])
+    user_message = data.get('userMessage')
+    # Use companion_id as the AI session ID for simplicity in this example
+    ai_session_id = str(companion_id) 
+
+    # In a real app, you'd fetch conversation_history_from_db based on companion_id and user_id
+    conversation_history_from_db = [] 
+
+    if not all([user_id, companion_id, companion_name, gender, relation, user_message]):
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    reply, new_session_id = generate_ai_response(
+        user_id, companion_id, companion_name, gender, relation, natures, user_message, ai_session_id, conversation_history_from_db
+    )
+    return jsonify({'reply': reply, 'aiSessionId': new_session_id})
+
+if __name__ == '__main__':
+    # Make sure to set GEMINI_API_KEY environment variable
+    # Example: export GEMINI_API_KEY='YOUR_API_KEY_HERE'
+    app.run(port=5001, debug=True)
