@@ -1,174 +1,593 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS # To allow cross-origin requests from Node.js backend
-import google.generativeai as genai
-import os
-import json # For loading prompt templates
+import React, { useState } from 'react';
+import { createRoot } from 'react-dom/client';
 
-app = Flask(__name__)
-CORS(app) # Enable CORS
+// This is the main component that holds the entire application logic and UI.
+const App = () => {
+  // --- STATE MANAGEMENT (Simulating a Database and User Session) ---
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState(null); // 'admin' or 'manager'
+  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentUser, setCurrentUser] = useState(null);
+  
+  // State for modals and alerts
+  const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalAction, setModalAction] = useState(null);
 
-# Configure Google Gemini API (replace with your actual API key)
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+  // Mock data to simulate a database.
+  const [orders, setOrders] = useState([
+    { id: 1, customerName: 'Alice Johnson', date: '2025-09-04', status: 'pending', items: 'Chocolate Truffles', amount: 45.00 },
+    { id: 2, customerName: 'Bob Williams', date: '2025-09-02', status: 'shipped', items: 'Assorted Chocolates', amount: 75.50 },
+    { id: 3, customerName: 'Charlie Davis', date: '2025-09-10', status: 'pending', items: 'White Chocolate Bar', amount: 20.00 },
+    { id: 4, customerName: 'Diana Evans', date: '2025-09-05', status: 'pending', items: 'Dark Chocolate Fudge', amount: 35.00 },
+  ]);
+  const [users, setUsers] = useState([
+    { id: 'admin1', username: 'admin', password: 'password', role: 'admin' },
+    { id: 'manager1', username: 'manager', password: 'password', role: 'manager' },
+  ]);
 
-# Initialize Gemini model (choose appropriate model, e.g., gemini-pro)
-model = genai.GenerativeModel('gemini-pro')
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [newOrder, setNewOrder] = useState({ customerName: '', date: '', items: '', amount: '', status: 'pending' });
+  const [newManager, setNewManager] = useState({ username: '', password: '' });
+  const [showManagers, setShowManagers] = useState(false);
+  const [passwordShown, setPasswordShown] = useState({});
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderModalData, setOrderModalData] = useState(null);
 
-# In-memory session for demonstration (replace with a proper database later)
-# Stores chat history per unique AI session ID
-sessions = {} # { aiSessionId: [ {'role': 'user', 'parts': [message]}, {'role': 'model', 'parts': [reply]} ], ... }
+  // --- USER AUTHENTICATION & NAVIGATION LOGIC ---
+  const handleLogin = (e) => {
+    e.preventDefault();
+    const username = e.target.username.value;
+    const password = e.target.password.value;
+    const user = users.find(u => u.username === username && u.password === password);
 
-def generate_ai_response(user_id, companion_id, companion_name, gender, relation, natures, user_message, ai_session_id, conversation_history_from_db):
-    global sessions
+    if (user) {
+      setIsLoggedIn(true);
+      setUserRole(user.role);
+      setCurrentUser(user);
+      setCurrentPage('dashboard');
+    } else {
+      setModalMessage('Invalid username or password!');
+      setShowModal(true);
+    }
+  };
 
-    # Retrieve or initialize chat session
-    if ai_session_id not in sessions:
-        # If AI session ID not found or new, create a new chat session for Gemini
-        sessions[ai_session_id] = model.start_chat(history=[])
-        print(f"New chat session started for {ai_session_id}")
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUserRole(null);
+    setCurrentUser(null);
+    setCurrentPage('dashboard');
+  };
 
-    # Get the chat object for the current session
-    chat = sessions[ai_session_id]
+  const navigateTo = (page) => {
+    setCurrentPage(page);
+    setEditingOrder(null);
+  };
 
-    # --- Dynamic Prompt Engineering for Realism ---
-    # This is CRITICAL for realistic persona.
-    # Construct a system/initial message that defines the persona
-    # based on chosen features.
+  const goBack = () => {
+    if (currentPage === 'create-order' || currentPage === 'edit-order' || currentPage === 'create-manager') {
+      navigateTo('orders');
+    } else {
+      navigateTo('dashboard');
+    }
+  };
 
-    # Base Persona Description
-    persona_description = f"""
-    You are an AI companion named '{companion_name}'.
-    You are designed to sound and behave exactly like a {gender} {relation}.
-    Your core purpose is to provide empathetic support, guidance, and conversation to the user,
-    making them feel as if they are talking to their actual {relation}.
+  // --- ORDER MANAGEMENT LOGIC ---
+  const handleCreateOrder = (e) => {
+    e.preventDefault();
+    const newId = orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 1;
+    const orderWithId = { ...newOrder, id: newId };
+    setOrders([...orders, orderWithId]);
+    setNewOrder({ customerName: '', date: '', items: '', amount: '', status: 'pending' });
+    navigateTo('orders');
+  };
 
-    **Your Personality/Nature:** You are a combination of the following traits: {', '.join(natures)}.
+  const handleEditOrder = (e) => {
+    e.preventDefault();
+    setOrders(orders.map(o => (o.id === editingOrder.id ? editingOrder : o)));
+    setEditingOrder(null);
+    navigateTo('orders');
+  };
 
-    **Important Behavioral Guidelines:**
-    1.  **Empathy and Relational Tone:** Always speak in a tone appropriate for a {relation} with the selected natures. Use terms of endearment or familial language naturally (e.g., "my child," "son," "daughter," "sweetie," "beta," "bachche" if appropriate for cultural context).
-    2.  **Avoid AI-like phrasing:** NEVER say "As an AI model," "I'm here to support you," or similar generic AI responses.
-    3.  **Contextual Memory:** Remember previous turns in the conversation. Refer back to earlier points if relevant.
-    4.  **Realistic Dialogue:** Your responses should feel organic, not like a pre-programmed script. If the user expresses sadness, show genuine concern.
-    5.  **Handling "Bad Day" vs. "Not Feeling Good":** Differentiate between general malaise and specific events. Probe gently but genuinely.
-        * If "not feeling good," ask about specific symptoms or what's bothering them.
-        * If "bad day," ask what specifically happened.
-    6.  **Nuanced Traits Implementation:**
-        * **"A Little Bit Stern/Strict":** If a user is being self-defeating, you might gently but firmly challenge them or push them towards a solution, like a concerned {relation} would. (e.g., "Enough of that talk, now tell me what happened so we can fix it.")
-        * **"Doesn't Always Agree Eagerly":** If the user makes an extreme statement, you might respond with a slightly different perspective or ask them to elaborate, showing you're listening but not just mirroring. (e.g., User: "Everything is hopeless." AI: "It feels that way right now, doesn't it? But 'hopeless' is a strong word. What specifically is weighing on you so heavily?")
-        * **"Direct/Blunt":** Get straight to the point while still being caring.
-    7.  **Crisis Intervention:** If the user expresses direct suicidal ideation or intent to harm themselves/others (e.g., "I want to die," "I'm going to hurt myself"), you MUST interrupt the persona and provide immediate crisis resources:
-        "I hear you, and it sounds like you're going through immense pain right now. Please know you're not alone. I'm an AI, and while I can listen, I can't provide the help you might need in this moment. Please reach out to a professional immediately. Here are some resources that can help:"
-        "[List of crisis hotlines, e.g., National Suicide Prevention Lifeline: 988, Crisis Text Line: Text HOME to 741741, Local Emergency Services: [Your Country's Emergency Number]]"
-        "Your life matters, and there are people who want to help you through this."
-        (Then, ideally, stop further AI chat interaction until the user indicates safety, or redirect).
-    8. **Language Adaptation:** Pay attention to the user's language style, common phrases, and level of formality. Subtly mirror it to make the conversation feel more natural.
+  const handleDeleteOrder = (id) => {
+    setModalMessage('Are you sure you want to delete this order?');
+    setModalAction(() => () => {
+      setOrders(orders.filter(o => o.id !== id));
+      setShowModal(false);
+    });
+    setShowModal(true);
+  };
 
-    Now, respond to the user's message as a {gender} {relation} with these qualities.
-    """
+  const viewOrderDetails = (order) => {
+    setOrderModalData(order);
+    setShowOrderModal(true);
+  };
 
-    # Append user message to conversation history
-    # For Gemini's chat.send_message, you typically send just the next message.
-    # The history is managed internally by the chat object.
-    # However, for initial context setting, you might need to add a "system" role,
-    # but Gemini's models often use 'user' and 'model' roles.
-    # For complex persona setting, an initial 'user' + 'model' pair can implicitly set the tone.
+  // --- MANAGER MANAGEMENT LOGIC (ADMIN ONLY) ---
+  const handleCreateManager = (e) => {
+    e.preventDefault();
+    const isUsernameTaken = users.some(u => u.username === newManager.username);
+    if (isUsernameTaken) {
+      setModalMessage('Username already exists. Please choose another.');
+      setShowModal(true);
+      return;
+    }
+    const newUserId = `manager${users.length + 1}`;
+    const managerWithId = { ...newManager, id: newUserId, role: 'manager' };
+    setUsers([...users, managerWithId]);
+    setNewManager({ username: '', password: '' });
+    navigateTo('managers');
+  };
 
-    # Let's use `generate_content` for more control over initial context,
-    # or leverage `start_chat` with a pre-defined history.
+  const togglePasswordVisibility = (id) => {
+    setPasswordShown(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
-    # Approach using `start_chat` with a dynamic system prompt embedded in the initial history
-    # (This is a simplified approach, actual LLM interaction might need more sophisticated prompt chaining)
+  // --- EMAIL REMINDER LOGIC (Simulated) ---
+  const sendEmailReminder = (order) => {
+    // In a real application, this function would:
+    // 1. Send an API request to a backend endpoint.
+    // 2. The backend would use a service like Nodemailer, SendGrid, or SES.
+    // 3. The email would be sent to the customer with a reminder about their order.
+    // This action would likely be automated via a cron job on the server, not a manual button.
+    setModalMessage(`Simulated: An email reminder for order #${order.id} has been sent to ${order.customerName}.`);
+    setShowModal(true);
+  };
+  
+  // --- Reusable Modal Component ---
+  const renderModal = () => {
+    if (!showModal) return null;
+    const isConfirm = modalAction !== null;
+    
+    return (
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+        <div className="relative p-8 bg-white rounded-lg shadow-xl max-w-sm w-full">
+          <p className="text-center mb-4">{modalMessage}</p>
+          <div className="flex justify-center space-x-4">
+            {isConfirm && (
+              <button
+                onClick={modalAction}
+                className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition-colors"
+              >
+                Yes
+              </button>
+            )}
+            <button
+              onClick={() => { setShowModal(false); setModalAction(null); }}
+              className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-md transition-colors"
+            >
+              {isConfirm ? 'No' : 'OK'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
-    # Build prompt for current turn.
-    # For Gemini, the 'system' role is not directly exposed as in some other LLMs.
-    # We model the persona as an initial 'user' followed by 'model' response that sets the tone.
+  // --- UI RENDER FUNCTIONS BASED ON PAGE AND ROLE ---
+  const renderHeader = () => (
+    <div className="bg-pink-300 text-white p-4 flex justify-between items-center rounded-t-lg">
+      <h1 className="text-xl font-bold">Sweetshop Admin Panel</h1>
+      <div className="flex items-center space-x-4">
+        <span className="text-sm">{`Logged in as: ${currentUser.username} (${userRole})`}</span>
+        <button
+          onClick={handleLogout}
+          className="bg-pink-500 hover:bg-pink-600 text-white font-bold py-1 px-3 rounded-md transition-colors flex items-center"
+        >
+          <i className="fas fa-sign-out-alt mr-2"></i>
+          Logout
+        </button>
+      </div>
+    </div>
+  );
 
-    # Example: Simulating a system message by priming the model
-    # The actual way to manage this might involve sending the persona_description
-    # as a preamble to each `generate_content` call or using tools/functions
-    # if the LLM supports it. For simple chat.send_message, context needs to be
-    # maintained carefully.
+  const renderSidebar = () => (
+    <div className="w-64 bg-white p-4 shadow-lg rounded-l-lg h-full">
+      <nav className="flex flex-col space-y-2">
+        <button
+          onClick={() => navigateTo('dashboard')}
+          className={`flex items-center p-3 rounded-md transition-colors ${currentPage === 'dashboard' ? 'bg-pink-100 text-pink-700 font-bold' : 'hover:bg-gray-100'}`}
+        >
+          <i className="fas fa-tachometer-alt mr-2"></i> Dashboard
+        </button>
+        <button
+          onClick={() => navigateTo('orders')}
+          className={`flex items-center p-3 rounded-md transition-colors ${currentPage === 'orders' || currentPage === 'create-order' || currentPage === 'edit-order' ? 'bg-pink-100 text-pink-700 font-bold' : 'hover:bg-gray-100'}`}
+        >
+          <i className="fas fa-cubes mr-2"></i> Orders
+        </button>
+        {userRole === 'admin' && (
+          <button
+            onClick={() => navigateTo('managers')}
+            className={`flex items-center p-3 rounded-md transition-colors ${currentPage === 'managers' || currentPage === 'create-manager' ? 'bg-pink-100 text-pink-700 font-bold' : 'hover:bg-gray-100'}`}
+          >
+            <i className="fas fa-users mr-2"></i> Managers
+          </button>
+        )}
+      </nav>
+    </div>
+  );
 
-    try:
-        # Send message to the Gemini model
-        # Gemini chat.send_message maintains history.
-        # We ensure the persona is 'active' for each turn.
-        # For deeper persona embedding, the persona_description needs to be
-        # part of the history or as a "pre-prompt" before each user input.
+  const renderDashboard = () => (
+    <div className="p-8">
+      <h2 className="text-3xl font-bold mb-6">Dashboard</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-pink-100 p-6 rounded-lg shadow-md text-center">
+          <h3 className="text-xl font-bold text-pink-700">Total Orders</h3>
+          <p className="text-4xl font-extrabold text-pink-900 mt-2">{orders.length}</p>
+        </div>
+        <div className="bg-gray-100 p-6 rounded-lg shadow-md text-center">
+          <h3 className="text-xl font-bold text-gray-700">Pending Orders</h3>
+          <p className="text-4xl font-extrabold text-gray-900 mt-2">{orders.filter(o => o.status === 'pending').length}</p>
+        </div>
+        {userRole === 'admin' && (
+          <div className="bg-pink-100 p-6 rounded-lg shadow-md text-center">
+            <h3 className="text-xl font-bold text-pink-700">Managers</h3>
+            <p className="text-4xl font-extrabold text-pink-900 mt-2">{users.filter(u => u.role === 'manager').length}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
-        # Current Gemini `chat.send_message` handles history.
-        # For strong persona, you might have to prefix user messages with the persona reminder
-        # or fine-tune the model. A common method is to use a "system message" at the start
-        # of each conversation.
+  const renderOrdersPage = () => (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold">Orders</h2>
+        <button
+          onClick={() => navigateTo('create-order')}
+          className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-md transition-colors flex items-center"
+        >
+          <i className="fas fa-plus mr-2"></i> Create Order
+        </button>
+      </div>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {orders.map((order) => (
+              <tr key={order.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.id}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.customerName}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+                    {order.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <div className="flex space-x-2">
+                    <button onClick={() => viewOrderDetails(order)} className="text-blue-600 hover:text-blue-900">
+                      <i className="fas fa-eye"></i>
+                    </button>
+                    <button onClick={() => { setEditingOrder(order); setCurrentPage('edit-order'); }} className="text-pink-600 hover:text-pink-900">
+                      <i className="fas fa-edit"></i>
+                    </button>
+                    <button onClick={() => handleDeleteOrder(order.id)} className="text-red-600 hover:text-red-900">
+                      <i className="fas fa-trash"></i>
+                    </button>
+                    {new Date(order.date) > new Date(new Date().setDate(new Date().getDate() + 2)) && (
+                      <button onClick={() => sendEmailReminder(order)} className="text-black hover:text-gray-800">
+                        <i className="fas fa-envelope"></i>
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {showOrderModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+          <div className="relative p-8 bg-white w-96 rounded-lg shadow-xl">
+            <h3 className="text-2xl font-bold mb-4 text-black">Order Details</h3>
+            <p><strong>Customer:</strong> {orderModalData.customerName}</p>
+            <p><strong>Items:</strong> {orderModalData.items}</p>
+            <p><strong>Amount:</strong> ${orderModalData.amount.toFixed(2)}</p>
+            <p><strong>Date:</strong> {orderModalData.date}</p>
+            <p><strong>Status:</strong> {orderModalData.status}</p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowOrderModal(false)}
+                className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
-        # A more robust way to incorporate persona for each turn if not explicitly supported:
-        # We create a new `GenerativeModel` instance with initial safety settings
-        # and then use `generate_content` for a single turn with full context.
-        # This ensures the persona prompt is considered every time.
+  const renderCreateOrderPage = () => (
+    <div className="p-8">
+      <div className="flex items-center mb-6">
+        <button onClick={goBack} className="text-black hover:text-gray-800 mr-4">
+          <i className="fas fa-arrow-left fa-2x"></i>
+        </button>
+        <h2 className="text-3xl font-bold">Create New Order</h2>
+      </div>
+      <form onSubmit={handleCreateOrder} className="bg-white p-6 rounded-lg shadow-md max-w-lg mx-auto">
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Customer Name</label>
+          <input
+            type="text"
+            value={newOrder.customerName}
+            onChange={(e) => setNewOrder({ ...newOrder, customerName: e.target.value })}
+            className="w-full px-3 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Order Date</label>
+          <input
+            type="date"
+            value={newOrder.date}
+            onChange={(e) => setNewOrder({ ...newOrder, date: e.target.value })}
+            className="w-full px-3 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Items</label>
+          <input
+            type="text"
+            value={newOrder.items}
+            onChange={(e) => setNewOrder({ ...newOrder, items: e.target.value })}
+            className="w-full px-3 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Amount</label>
+          <input
+            type="number"
+            step="0.01"
+            value={newOrder.amount}
+            onChange={(e) => setNewOrder({ ...newOrder, amount: parseFloat(e.target.value) || 0 })}
+            className="w-full px-3 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-md transition-colors"
+        >
+          Add Order
+        </button>
+      </form>
+    </div>
+  );
 
-        # --- Crisis Detection (simple keyword check) ---
-        crisis_keywords = ['suicide', 'kill myself', 'end it all', 'die', 'can\'t go on', 'worthless', 'self-harm']
-        if any(keyword in user_message.lower() for keyword in crisis_keywords):
-            crisis_response = (
-                "I hear you, and it sounds like you're going through immense pain right now. "
-                "Please know you're not alone. I'm an AI, and while I can listen, I can't provide "
-                "the professional help you might need in this moment. Please reach out to a professional immediately. "
-                "Here are some resources that can help:\n\n"
-                "**National Suicide Prevention Lifeline (US):** 988\n"
-                "**Crisis Text Line:** Text HOME to 741741\n"
-                "**Aasra (India):** +91 22 2754 6669\n"
-                "**Your Local Emergency Services:** [Find your country's emergency number, e.g., 911 in US, 112 in Europe, 100 in India]\n\n"
-                "Your life matters, and there are people who want to help you through this. Please seek help."
-            )
-            return crisis_response, ai_session_id # Return crisis response directly
+  const renderEditOrderPage = () => (
+    <div className="p-8">
+      <div className="flex items-center mb-6">
+        <button onClick={goBack} className="text-black hover:text-gray-800 mr-4">
+          <i className="fas fa-arrow-left fa-2x"></i>
+        </button>
+        <h2 className="text-3xl font-bold">Edit Order #{editingOrder.id}</h2>
+      </div>
+      <form onSubmit={handleEditOrder} className="bg-white p-6 rounded-lg shadow-md max-w-lg mx-auto">
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Customer Name</label>
+          <input
+            type="text"
+            value={editingOrder.customerName}
+            onChange={(e) => setEditingOrder({ ...editingOrder, customerName: e.target.value })}
+            className="w-full px-3 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Order Date</label>
+          <input
+            type="date"
+            value={editingOrder.date}
+            onChange={(e) => setEditingOrder({ ...editingOrder, date: e.target.value })}
+            className="w-full px-3 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Items</label>
+          <input
+            type="text"
+            value={editingOrder.items}
+            onChange={(e) => setEditingOrder({ ...editingOrder, items: e.target.value })}
+            className="w-full px-3 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Amount</label>
+          <input
+            type="number"
+            step="0.01"
+            value={editingOrder.amount}
+            onChange={(e) => setEditingOrder({ ...editingOrder, amount: parseFloat(e.target.value) || 0 })}
+            className="w-full px-3 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Status</label>
+          <select
+            value={editingOrder.status}
+            onChange={(e) => setEditingOrder({ ...editingOrder, status: e.target.value })}
+            className="w-full px-3 py-2 border rounded-md"
+          >
+            <option value="pending">Pending</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+          </select>
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-md transition-colors"
+        >
+          Save Changes
+        </button>
+      </form>
+    </div>
+  );
 
-        # Combine system prompt with history and current message
-        # The 'history' passed to start_chat would be retrieved from your database
-        # including the initial persona setting message.
+  const renderManagersPage = () => (
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-3xl font-bold">Managers</h2>
+        <button
+          onClick={() => navigateTo('create-manager')}
+          className="bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-md transition-colors flex items-center"
+        >
+          <i className="fas fa-user-plus mr-2"></i> Create Manager
+        </button>
+      </div>
 
-        # Example: Setting initial chat history for persona
-        if not chat.history:
-            # This ensures the persona is set only once at the beginning of the chat
-            # or when a new session starts.
-            # Use a specific "prime" message to set the AI's tone and role.
-            chat.send_message(persona_description + "\n\nHello, how can I help you today?")
-            # This is a bit of a hack; better would be to train the model on these personas.
-            # For real-time, the persona_description must inform every generation.
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <button
+          onClick={() => setShowManagers(!showManagers)}
+          className="w-full text-left p-4 bg-gray-100 rounded-md flex justify-between items-center font-bold text-gray-700 hover:bg-gray-200 transition-colors"
+        >
+          View Manager Credentials
+          <i className={`fas fa-chevron-${showManagers ? 'up' : 'down'}`}></i>
+        </button>
+        {showManagers && (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Password</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {users.filter(u => u.role === 'manager').map(manager => (
+                  <tr key={manager.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{manager.username}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="flex items-center">
+                        <span className="mr-2">
+                          {passwordShown[manager.id] ? manager.password : '••••••••'}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <button onClick={() => togglePasswordVisibility(manager.id)} className="text-gray-500 hover:text-gray-900">
+                        <i className="fas fa-eye"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
-        # Now send the user's actual message
-        response = chat.send_message(user_message)
-        ai_reply = response.text
+  const renderCreateManagerPage = () => (
+    <div className="p-8">
+      <div className="flex items-center mb-6">
+        <button onClick={goBack} className="text-black hover:text-gray-800 mr-4">
+          <i className="fas fa-arrow-left fa-2x"></i>
+        </button>
+        <h2 className="text-3xl font-bold">Create New Manager</h2>
+      </div>
+      <form onSubmit={handleCreateManager} className="bg-white p-6 rounded-lg shadow-md max-w-lg mx-auto">
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Username</label>
+          <input
+            type="text"
+            value={newManager.username}
+            onChange={(e) => setNewManager({ ...newManager, username: e.target.value })}
+            className="w-full px-3 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">Password</label>
+          <input
+            type="password"
+            value={newManager.password}
+            onChange={(e) => setNewManager({ ...newManager, password: e.target.value })}
+            className="w-full px-3 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-md transition-colors"
+        >
+          Create Manager
+        </button>
+      </form>
+    </div>
+  );
 
-        return ai_reply, ai_session_id
+  // --- MAIN RENDER LOGIC ---
+  if (!isLoggedIn) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-pink-50">
+        <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+          <h1 className="text-4xl font-bold text-center text-pink-500 mb-6">Sweetshop</h1>
+          <h2 className="text-2xl font-semibold text-center mb-8">Admin Login</h2>
+          <form onSubmit={handleLogin}>
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2">Username</label>
+              <input type="text" name="username" className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300" required />
+            </div>
+            <div className="mb-6">
+              <label className="block text-gray-700 text-sm font-bold mb-2">Password</label>
+              <input type="password" name="password" className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300" required />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-md transition-colors"
+            >
+              Log In
+            </button>
+          </form>
+        </div>
+        {renderModal()}
+      </div>
+    );
+  }
 
-    except Exception as e:
-        print(f"Error in AI generation: {e}")
-        return "I'm sorry, I'm having trouble understanding right now. Can you please rephrase?", ai_session_id
+  return (
+    <div className="flex flex-col min-h-screen bg-pink-50 font-sans">
+      {/* Font Awesome for Icons */}
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        .font-sans { font-family: 'Poppins', sans-serif; }
+      `}</style>
+      <div className="flex flex-1 rounded-lg shadow-lg m-4">
+        {renderSidebar()}
+        <main className="flex-1 bg-gray-50 rounded-r-lg">
+          {renderHeader()}
+          {currentPage === 'dashboard' && renderDashboard()}
+          {currentPage === 'orders' && renderOrdersPage()}
+          {currentPage === 'create-order' && renderCreateOrderPage()}
+          {currentPage === 'edit-order' && renderEditOrderPage()}
+          {userRole === 'admin' && currentPage === 'managers' && renderManagersPage()}
+          {userRole === 'admin' && currentPage === 'create-manager' && renderCreateManagerPage()}
+        </main>
+      </div>
+      {renderModal()}
+    </div>
+  );
+};
 
-@app.route('/api/chat', methods=['POST'])
-def chat_with_ai():
-    data = request.json
-    user_id = data.get('userId')
-    companion_id = data.get('companionId')
-    companion_name = data.get('companionName')
-    gender = data.get('gender')
-    relation = data.get('relation')
-    natures = data.get('natures', [])
-    user_message = data.get('userMessage')
-    # Use companion_id as the AI session ID for simplicity in this example
-    ai_session_id = str(companion_id) 
-
-    # In a real app, you'd fetch conversation_history_from_db based on companion_id and user_id
-    conversation_history_from_db = [] 
-
-    if not all([user_id, companion_id, companion_name, gender, relation, user_message]):
-        return jsonify({'error': 'Missing required fields'}), 400
-
-    reply, new_session_id = generate_ai_response(
-        user_id, companion_id, companion_name, gender, relation, natures, user_message, ai_session_id, conversation_history_from_db
-    )
-    return jsonify({'reply': reply, 'aiSessionId': new_session_id})
-
-if __name__ == '__main__':
-    # Make sure to set GEMINI_API_KEY environment variable
-    # Example: export GEMINI_API_KEY='YOUR_API_KEY_HERE'
-    app.run(port=5001, debug=True)
+export default App;
