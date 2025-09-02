@@ -4,7 +4,7 @@ using react and node js langauge.
 
 https://g.co/gemini/share/8578825e1435  
 
-Click i trust button for open the web app.
+Click continue button for open the web app.
 
 Made with google gemini...
 
