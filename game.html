@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA Arcade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Bebas+Neue&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            padding: 2rem 1rem;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #2d3748;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
+            padding: 2rem;
+        }
+        .title {
+            font-family: 'Bebas Neue', sans-serif;
+            text-shadow: 2px 2px #3b82f6;
+        }
+        .game-card {
+            background-color: #242c38;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .btn {
+            padding: 0.75rem 2rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-top: auto;
+        }
+        .btn-green {
+            background-color: #10b981;
+            color: white;
+        }
+        .btn-green:hover {
+            background-color: #059669;
+            transform: translateY(-2px);
+        }
+        .btn-blue {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .btn-blue:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .bug-element {
+            font-size: 2rem;
+            animation: popIn 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .road {
+            height: 40px;
+            width: 100%;
+            background-color: #383838;
+            border-top: 2px dashed #e2e8f0;
+            border-bottom: 2px dashed #e2e8f0;
+            position: relative;
+            overflow: hidden;
+        }
+        .road-line {
+            position: absolute;
+            height: 2px;
+            width: 30px;
+            background-color: #e2e8f0;
+            top: 50%;
+            transform: translateY(-50%);
+            left: 0;
+        }
+        .car {
+            height: 20px;
+            width: 40px;
+            background-color: #ef4444;
+            position: absolute;
+            top: 10px;
+            left: 0;
+            border-radius: 5px;
+            transition: left 0.1s linear;
+        }
+        .ui-bug-found {
+            outline: 3px solid #10b981;
+        }
+        .ui-panel {
+            background-color: #1f2937;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        .ui-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        .code-input {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            background-color: #1f2937;
+            border: 1px solid #4a5568;
+            color: #e2e8f0;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+        .feedback-dot {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            border: 1px solid #4a5568;
+        }
+        .feedback-dot.green { background-color: #10b981; }
+        .feedback-dot.orange { background-color: #f97316; }
+        .feedback-dot.gray { background-color: #4a5568; }
+        .interop-window {
+            background-color: #1f2937;
+            border: 2px solid #3b82f6;
+            width: 150px;
+            height: 150px;
+            position: relative;
+            border-radius: 0.5rem;
+        }
+        .interop-shape {
+            width: 30px;
+            height: 30px;
+            background-color: #10b981;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .leak {
+            background-color: #ef4444;
+            border-radius: 50%;
+            position: absolute;
+            animation: spawn 0.5s ease-in-out, pulse 1s infinite alternate;
+        }
+        @keyframes spawn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+        .a11y-bugged {
+            cursor: pointer;
+            border: 2px dashed #f97316;
+            transition: all 0.2s;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="container text-center">
+        <h1 class="text-6xl font-extrabold mb-2 title">QA Arcade</h1>
+        <p class="text-xl text-gray-400 mb-12">Play, Learn, Test! A manual testing playground.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+            <!-- Game 1: Bug Squasher -->
+            <div id="bugSquasher" class="game-card">
+                <h2 class="text-3xl font-bold mb-4">Bug Squasher</h2>
+                <p class="text-sm text-gray-400 mb-4">Click the bugs, avoid the features. The pace gets faster with each level!</p>
+                <div class="relative w-full aspect-square bg-gray-700 rounded-lg overflow-hidden">
+                    <div id="bugGrid" class="absolute inset-0 grid grid-cols-3 gap-2 p-2"></div>
+                </div>
+                <div class="mt-4 w-full flex justify-between items-center text-sm font-semibold">
+                    <span>Bugs: <span id="bugScore">0</span></span>
+                    <span>Time: <span id="bugTime">30</span>s</span>
+                    <span>Level: <span id="bugLevel">1</span></span>
+                </div>
+                <button id="bugStartBtn" class="btn btn-green w-full mt-6">Start Game</button>
+            </div>
+
+            <!-- Game 2: Load Test Racer -->
+            <div id="loadTestRacer" class="game-card">
+                <h2 class="text-3xl font-bold mb-4">Load Test Racer</h2>
+                <p class="text-sm text-gray-400 mb-4">Click fast or hold the spacebar to maintain your speed and pass the load test!</p>
+                <div class="relative w-full">
+                    <div id="raceTrack" class="road">
+                        <div id="raceCar" class="car"></div>
+                    </div>
+                </div>
+                <div class="mt-4 w-full flex flex-col items-center">
+                    <span id="loadStatus" class="text-lg font-bold mb-2">Ready to Race!</span>
+                    <button id="loadTestBtn" class="btn btn-blue w-full">Click to Accelerate</button>
+                    <span class="text-sm text-gray-500 mt-2">Level: <span id="loadLevel">1</span></span>
+                    <span class="text-sm text-gray-500 mt-2">Distance: <span id="loadDistance">0</span> / 1000</span>
+                </div>
+            </div>
+
+            <!-- Game 3: UI/UX Validator -->
+            <div id="uiUxGame" class="game-card">
+                <h2 class="text-3xl font-bold mb-4">UI/UX Validator</h2>
+                <p class="text-sm text-gray-400 mb-4">Find all the regression bugs in the UI! Find them all to proceed.</p>
+                <div class="w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div id="uiPanelA" class="ui-panel cursor-pointer relative"></div>
+                    <div id="uiPanelB" class="ui-panel cursor-pointer relative"></div>
+                </div>
+                <div class="mt-4 text-sm font-semibold">
+                    Bugs Found: <span id="uiBugsFound">0</span> / <span id="uiBugsTotal">0</span>
+                    <span id="uiLevelDisplay" class="ml-4">Level: <span id="uiLevel">1</span></span>
+                </div>
+                <button id="uiRestartBtn" class="btn btn-green w-full mt-6">Restart Test</button>
+            </div>
+
+            <!-- Game 4: Security Breacher -->
+            <div id="securityBreacher" class="game-card">
+                <h2 class="text-3xl font-bold mb-4">Security Breacher</h2>
+                <p class="text-sm text-gray-400 mb-4">Guess the secret code. A **green dot** means a correct digit in the correct position. An **orange dot** means a correct digit in the wrong position. The code length increases with each level!</p>
+                <div class="w-full flex flex-col items-center">
+                    <div id="securityCode" class="flex justify-center space-x-2 my-4"></div>
+                    <input type="text" id="securityInput" class="code-input text-gray-200" placeholder="Enter guess">
+                    <button id="securityGuessBtn" class="btn btn-blue w-full mt-4">Guess</button>
+                    <div id="securityFeedback" class="flex justify-center space-x-2 mt-2"></div>
+                </div>
+                <div class="mt-4 w-full flex justify-between items-center text-sm font-semibold">
+                    <span>Level: <span id="securityLevel">1</span></span>
+                    <span>Tries: <span id="securityTries">0</span></span>
+                </div>
+                <button id="securityStartBtn" class="btn btn-blue w-full mt-6">Start Hacking</button>
+            </div>
+
+            <!-- Game 5: Localization Explorer -->
+            <div id="localizationExplorer" class="game-card">
+                <h2 class="text-3xl font-bold mb-4">Localization Explorer</h2>
+                <p class="text-sm text-gray-400 mb-4">Select the correct translation. Move fast to beat the clock and get to the next level!</p>
+                <div class="w-full flex flex-col items-center">
+                    <div id="translationWord" class="text-4xl font-extrabold my-4 text-white"></div>
+                    <div id="translationOptions" class="grid grid-cols-2 gap-4 w-full"></div>
+                </div>
+                <div class="mt-4 w-full flex justify-between items-center text-sm font-semibold">
+                    <span>Score: <span id="locScore">0</span></span>
+                    <span>Level: <span id="locLevel">1</span></span>
+                </div>
+                <button id="locStartBtn" class="btn btn-green w-full mt-6">Start Game</button>
+            </div>
+
+            <!-- Game 6: Recovery Hero -->
+            <div id="recoveryHero" class="game-card">
+                <h2 class="text-3xl font-bold mb-4">Recovery Hero</h2>
+                <p class="text-sm text-gray-400 mb-4">Memorize the sequence to restore the system. A test of your recovery skills.</p>
+                <div class="w-full flex flex-col items-center">
+                    <div id="recoverySequence" class="flex justify-center my-4 space-x-2"></div>
+                    <div id="recoveryInput" class="flex justify-center my-4 space-x-2"></div>
+                </div>
+                <div class="mt-4 w-full flex justify-between items-center text-sm font-semibold">
+                    <span>Level: <span id="recLevel">1</span></span>
+                    <span>Status: <span id="recStatus" class="text-white">Ready</span></span>
+                </div>
+                <button id="recStartBtn" class="btn btn-blue w-full mt-6">Start Recovery</button>
+            </div>
+
+            <!-- Game 7: Accessibility Auditor -->
+            <div id="a11yAuditor" class="game-card">
+                <h2 class="text-3xl font-bold mb-4">Accessibility Auditor</h2>
+                <p class="text-sm text-gray-400 mb-4">Find and fix the accessibility bugs! Click on the non-compliant elements to fix them and proceed.</p>
+                <div class="relative w-full aspect-square bg-gray-700 rounded-lg overflow-hidden flex flex-col items-center justify-center p-4">
+                    <div id="a11yBoard" class="grid grid-cols-3 gap-2 w-full h-full"></div>
+                </div>
+                <div class="mt-4 w-full flex justify-between items-center text-sm font-semibold">
+                    <span>Bugs Found: <span id="a11yBugsFound">0</span></span>
+                    <span>Level: <span id="a11yLevel">1</span></span>
+                </div>
+                <button id="a11yStartBtn" class="btn btn-green w-full mt-6">Start Audit</button>
+            </div>
+            
+            <!-- Game 8: Interoperability Tester -->
+            <div id="interopTester" class="game-card">
+                <h2 class="text-3xl font-bold mb-4">Interoperability Tester</h2>
+                <p class="text-sm text-gray-400 mb-4">Move the object from the left window to the right. Choose the right "vendor prefix" button to make it work!</p>
+                <div class="w-full flex justify-around items-center my-4">
+                    <div id="interopWindowLeft" class="interop-window">
+                        <div id="interopShape" class="interop-shape"></div>
+                    </div>
+                    <div id="interopWindowRight" class="interop-window"></div>
+                </div>
+                <div id="interopControls" class="w-full grid grid-cols-2 gap-4">
+                    <button id="moveA" class="btn btn-blue">Move A</button>
+                    <button id="moveB" class="btn btn-blue">Move B</button>
+                </div>
+                <div class="mt-4 w-full flex justify-between items-center text-sm font-semibold">
+                    <span>Level: <span id="interopLevel">1</span></span>
+                    <span>Status: <span id="interopStatus" class="text-white">Ready</span></span>
+                </div>
+                <button id="interopStartBtn" class="btn btn-green w-full mt-6">Start Test</button>
+            </div>
+
+            <!-- Game 9: Performance Profiler -->
+            <div id="perfProfiler" class="game-card">
+                <h2 class="text-3xl font-bold mb-4">Performance Profiler</h2>
+                <p class="text-sm text-gray-400 mb-4">Click to clear the memory leaks as they appear. The more leaks you clear, the faster they spawn!</p>
+                <div id="perfBoard" class="relative w-full aspect-square bg-gray-700 rounded-lg overflow-hidden"></div>
+                <div class="mt-4 w-full flex justify-between items-center text-sm font-semibold">
+                    <span>Leaks Cleared: <span id="perfLeaksCleared">0</span></span>
+                    <span>Level: <span id="perfLevel">1</span></span>
+                </div>
+                <button id="perfStartBtn" class="btn btn-blue w-full mt-6">Start Profiling</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for game messages -->
+    <div id="modalOverlay" class="modal-overlay hidden">
+        <div id="modalContent" class="modal-content"></div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            // Shared Game Logic
+            const modalOverlay = document.getElementById('modalOverlay');
+            const modalContent = document.getElementById('modalContent');
+            
+            function showModal(title, message, callback) {
+                modalContent.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-4">${title}</h2>
+                    <p class="text-lg text-gray-400 mb-6">${message}</p>
+                    <button id="modalBtn" class="btn btn-blue w-full">Close</button>
+                `;
+                modalOverlay.classList.remove('hidden');
+                document.getElementById('modalBtn').onclick = () => {
+                    modalOverlay.classList.add('hidden');
+                    if (callback) callback();
+                };
+            }
+
+            // --- Game 1: Bug Squasher ---
+            const bugGrid = document.getElementById('bugGrid');
+            const bugStartBtn = document.getElementById('bugStartBtn');
+            const bugScoreSpan = document.getElementById('bugScore');
+            const bugTimeSpan = document.getElementById('bugTime');
+            const bugLevelSpan = document.getElementById('bugLevel');
+            const BUG_TYPES = ['🐛', '🪲', '🐞'];
+            const FEATURE_TYPES = ['✨', '💎', '💡'];
+            let bugTimeLeft = 30;
+            let bugScore = 0;
+            let bugLevel = 1;
+            let bugTimer = null;
+            let bugInterval = null;
+
+            function createBugOrFeature(type) {
+                const cell = document.createElement('div');
+                cell.className = 'w-full h-full rounded-full cursor-pointer flex items-center justify-center bug-element';
+                if (type === 'bug') {
+                    cell.innerHTML = `<span class="text-2xl">${BUG_TYPES[Math.floor(Math.random() * BUG_TYPES.length)]}</span>`;
+                    cell.onclick = () => {
+                        bugScore++;
+                        bugScoreSpan.textContent = bugScore;
+                        cell.style.display = 'none';
+                        checkBugLevelUp();
+                    };
+                } else {
+                    cell.innerHTML = `<span class="text-2xl">${FEATURE_TYPES[Math.floor(Math.random() * FEATURE_TYPES.length)]}</span>`;
+                    cell.onclick = () => {
+                        clearInterval(bugInterval);
+                        clearTimeout(bugTimer);
+                        showModal("Wrong!", "You clicked a 'feature'! Game Over.", () => endBugGame(false));
+                    };
+                }
+                return cell;
+            }
+
+            function popItems() {
+                bugGrid.innerHTML = '';
+                const cells = Array(9).fill(null).map(() => document.createElement('div'));
+                const bugIndex = Math.floor(Math.random() * 9);
+                cells[bugIndex] = createBugOrFeature('bug');
+                let featureIndex = Math.floor(Math.random() * 9);
+                while (featureIndex === bugIndex) {
+                    featureIndex = Math.floor(Math.random() * 9);
+                }
+                cells[featureIndex] = createBugOrFeature('feature');
+                cells.forEach(c => {
+                    const gridCell = document.createElement('div');
+                    gridCell.className = 'w-full h-full flex items-center justify-center';
+                    if (c) gridCell.appendChild(c);
+                    bugGrid.appendChild(gridCell);
+                });
+            }
+
+            function checkBugLevelUp() {
+                const requiredBugs = 5 + (bugLevel - 1) * 3;
+                if (bugScore >= requiredBugs) {
+                    bugLevel++;
+                    bugLevelSpan.textContent = bugLevel;
+                    clearInterval(bugInterval);
+                    bugInterval = setInterval(popItems, Math.max(200, 1000 - (bugLevel - 1) * 100));
+                }
+            }
+
+            function endBugGame(isWin) {
+                clearInterval(bugInterval);
+                clearTimeout(bugTimer);
+                bugStartBtn.textContent = 'Restart Game';
+                bugStartBtn.disabled = false;
+                if(isWin) {
+                    showModal("Time's Up!", `You found ${bugScore} bugs and reached level ${bugLevel}!`);
+                }
+            }
+
+            bugStartBtn.addEventListener('click', () => {
+                bugScore = 0;
+                bugLevel = 1;
+                bugTimeLeft = 30;
+                bugScoreSpan.textContent = bugScore;
+                bugLevelSpan.textContent = bugLevel;
+                bugTimeSpan.textContent = bugTimeLeft;
+                bugStartBtn.textContent = 'Playing...';
+                bugStartBtn.disabled = true;
+                bugInterval = setInterval(popItems, 1000);
+                bugTimer = setInterval(() => {
+                    bugTimeLeft--;
+                    bugTimeSpan.textContent = bugTimeLeft;
+                    if (bugTimeLeft <= 0) {
+                        endBugGame(true);
+                    }
+                }, 1000);
+            });
+
+            // --- Game 2: Load Test Racer ---
+            const loadTestBtn = document.getElementById('loadTestBtn');
+            const raceCar = document.getElementById('raceCar');
+            const loadStatus = document.getElementById('loadStatus');
+            const loadLevelSpan = document.getElementById('loadLevel');
+            const loadDistanceSpan = document.getElementById('loadDistance');
+            const raceTrack = document.getElementById('raceTrack');
+            let carSpeed = 0;
+            let loadLevel = 1;
+            const WIN_DISTANCE = 1000;
+            let currentDistance = 0;
+            let isRunning = false;
+            let isSpacePressed = false;
+            let animationFrameId;
+
+            function updateGame() {
+                if (!isRunning) return;
+                carSpeed = Math.max(0, carSpeed - 0.05);
+                currentDistance += carSpeed;
+                raceCar.style.left = `${Math.min(100, (currentDistance / WIN_DISTANCE) * 100)}%`;
+                loadDistanceSpan.textContent = Math.floor(currentDistance);
+
+                const requiredSpeed = 10 + (loadLevel - 1) * 5;
+                if (carSpeed >= requiredSpeed) {
+                    loadStatus.textContent = 'Performance OK!';
+                    loadStatus.style.color = '#10b981';
+                } else {
+                    loadStatus.textContent = 'Server Under Load!';
+                    loadStatus.style.color = '#ef4444';
+                }
+
+                if (currentDistance >= WIN_DISTANCE) {
+                    loadLevel++;
+                    loadLevelSpan.textContent = loadLevel;
+                    currentDistance = 0;
+                    carSpeed = 0;
+                    if (loadLevel > 3) {
+                         showModal("Race Complete!", `You've proven the system is robust! You completed ${loadLevel - 1} levels of performance testing.`, () => endLoadGame());
+                    } else {
+                         showModal("Level Complete!", `You passed the load test for Level ${loadLevel - 1}. Now for the next challenge!`);
+                    }
+                }
+                animationFrameId = requestAnimationFrame(updateGame);
+            }
+
+            function startLoadGame() {
+                if (isRunning) return;
+                isRunning = true;
+                loadTestBtn.textContent = 'Click/Spacebar to Accelerate';
+                raceCar.style.left = '0%';
+                currentDistance = 0;
+                carSpeed = 0;
+                animationFrameId = requestAnimationFrame(updateGame);
+                for (let i = 0; i < 10; i++) {
+                    const line = document.createElement('div');
+                    line.className = 'road-line';
+                    line.style.left = `${i * 10}%`;
+                    raceTrack.appendChild(line);
+                }
+            }
+
+            function endLoadGame() {
+                isRunning = false;
+                cancelAnimationFrame(animationFrameId);
+                loadTestBtn.textContent = 'Restart Game';
+                loadLevel = 1;
+                loadLevelSpan.textContent = loadLevel;
+                loadDistanceSpan.textContent = 0;
+            }
+
+            function accelerate() {
+                carSpeed += 2 + (loadLevel - 1) * 0.5;
+            }
+
+            loadTestBtn.addEventListener('click', () => {
+                if (!isRunning) { startLoadGame(); }
+                accelerate();
+            });
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && !isSpacePressed) {
+                    e.preventDefault();
+                    isSpacePressed = true;
+                    if (!isRunning) { startLoadGame(); }
+                    accelerate();
+                }
+            });
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'Space') {
+                    isSpacePressed = false;
+                }
+            });
+            
+            // --- Game 3: UI/UX Validator ---
+            const uiPanelA = document.getElementById('uiPanelA');
+            const uiPanelB = document.getElementById('uiPanelB');
+            const uiRestartBtn = document.getElementById('uiRestartBtn');
+            const uiBugsFoundSpan = document.getElementById('uiBugsFound');
+            const uiBugsTotalSpan = document.getElementById('uiBugsTotal');
+            const uiLevelSpan = document.getElementById('uiLevel');
+            let uiBugsFound = 0;
+            let uiBugsTotal = 0;
+            let uiLevel = 1;
+            const uiBugLevels = [
+                [{ type: 'color', element: 'btn-main', bug: 'bg-red-500', correct: 'bg-blue-500' }],
+                [{ type: 'text', element: 'title', bug: 'Login', correct: 'Sign Up' }, { type: 'color', element: 'btn-secondary', bug: 'bg-green-500', correct: 'bg-gray-400' }],
+                [{ type: 'shape', element: 'profile-pic', bug: 'rounded-full', correct: 'rounded-lg' }, { type: 'color', element: 'icon-primary', bug: 'text-yellow-400', correct: 'text-blue-400' }, { type: 'text', element: 'btn-secondary', bug: 'Submit', correct: 'Cancel' }],
+            ];
+            
+            function generateUiPanel(isBugged, bugsToFind) {
+                const panel = document.createElement('div');
+                panel.className = 'w-full flex flex-col items-center';
+                const elements = `
+                    <h1 data-element="title" class="text-xl font-bold mb-2">Sign Up</h1>
+                    <div data-element="profile-pic" class="w-16 h-16 bg-gray-400 rounded-lg mb-4"></div>
+                    <button data-element="btn-main" class="ui-button bg-blue-500 text-white w-full mb-2">Continue</button>
+                    <button data-element="btn-secondary" class="ui-button bg-gray-400 text-gray-800 w-full">Cancel</button>
+                    <div data-element="icon-primary" class="mt-4 text-blue-400 text-3xl">★</div>
+                `;
+                panel.innerHTML = elements;
+
+                if (isBugged) {
+                    bugsToFind.forEach(bug => {
+                        const bugElement = panel.querySelector(`[data-element="${bug.element}"]`);
+                        if (bugElement) {
+                            if (bug.type === 'color') {
+                                bugElement.classList.replace(bug.correct, bug.bug);
+                            } else if (bug.type === 'text') {
+                                bugElement.textContent = bug.bug;
+                            } else if (bug.type === 'shape') {
+                                bugElement.classList.replace(bug.correct, bug.bug);
+                            }
+                        }
+                    });
+                }
+                return panel.innerHTML;
+            }
+
+            function setupUiGame() {
+                const bugsForLevel = uiBugLevels[uiLevel - 1] || [];
+                uiBugsTotal = bugsForLevel.length;
+                uiBugsFound = 0;
+                uiBugsFoundSpan.textContent = uiBugsFound;
+                uiBugsTotalSpan.textContent = uiBugsTotal;
+                uiLevelSpan.textContent = uiLevel;
+                const isBugInA = Math.random() > 0.5;
+                uiPanelA.innerHTML = generateUiPanel(!isBugInA, bugsForLevel);
+                uiPanelB.innerHTML = generateUiPanel(isBugInA, bugsForLevel);
+                uiPanelA.onclick = (e) => handleUiClick(e, !isBugInA, bugsForLevel);
+                uiPanelB.onclick = (e) => handleUiClick(e, isBugInA, bugsForLevel);
+                uiPanelA.classList.remove('ui-bug-found');
+                uiPanelB.classList.remove('ui-bug-found');
+            }
+
+            function handleUiClick(event, isBugged, bugsForLevel) {
+                if (isBugged) {
+                    if (!event.currentTarget.classList.contains('ui-bug-found')) {
+                        uiBugsFound++;
+                        uiBugsFoundSpan.textContent = uiBugsFound;
+                        event.currentTarget.classList.add('ui-bug-found');
+                        if (uiBugsFound === uiBugsTotal) {
+                            showModal("Level Complete!", `You found all the bugs for level ${uiLevel}!`, () => {
+                                uiLevel++;
+                                if (uiLevel > uiBugLevels.length) {
+                                    showModal("Congratulations!", "You have completed all UI/UX levels!");
+                                    uiLevel = 1; // Reset for replay
+                                }
+                                setupUiGame();
+                            });
+                        }
+                    }
+                } else {
+                    showModal("No Bug Here!", "This panel looks correct. The bug is in the other one.");
+                }
+            }
+
+            uiRestartBtn.addEventListener('click', () => {
+                uiLevel = 1;
+                setupUiGame();
+            });
+            setupUiGame();
+
+            // --- Game 4: Security Breacher ---
+            const securityStartBtn = document.getElementById('securityStartBtn');
+            const securityGuessBtn = document.getElementById('securityGuessBtn');
+            const securityInput = document.getElementById('securityInput');
+            const securityCodeDiv = document.getElementById('securityCode');
+            const securityFeedbackDiv = document.getElementById('securityFeedback');
+            const securityLevelSpan = document.getElementById('securityLevel');
+            const securityTriesSpan = document.getElementById('securityTries');
+            let securityLevel = 1;
+            let securityTries = 0;
+            let securityCode = '';
+
+            function generateSecurityCode() {
+                const codeLength = 3 + securityLevel;
+                let code = '';
+                for (let i = 0; i < codeLength; i++) {
+                    code += Math.floor(Math.random() * 10);
+                }
+                securityCode = code;
+                securityInput.maxLength = codeLength;
+                securityCodeDiv.innerHTML = '';
+                for (let i = 0; i < codeLength; i++) {
+                    const digit = document.createElement('span');
+                    digit.className = 'text-2xl font-mono text-gray-500';
+                    digit.textContent = '•';
+                    securityCodeDiv.appendChild(digit);
+                }
+                securityTries = 0;
+                securityTriesSpan.textContent = securityTries;
+                securityFeedbackDiv.innerHTML = '';
+                securityInput.value = '';
+                securityInput.disabled = false;
+                securityGuessBtn.disabled = false;
+            }
+
+            securityStartBtn.addEventListener('click', () => {
+                securityLevel = 1;
+                securityLevelSpan.textContent = securityLevel;
+                generateSecurityCode();
+            });
+            
+            securityGuessBtn.addEventListener('click', checkGuess);
+
+            function checkGuess() {
+                const guess = securityInput.value;
+                if (guess.length !== securityCode.length) {
+                    showModal("Invalid Guess", `The code has ${securityCode.length} digits. Please enter a valid guess.`);
+                    return;
+                }
+                securityTries++;
+                securityTriesSpan.textContent = securityTries;
+                securityFeedbackDiv.innerHTML = '';
+                
+                if (guess === securityCode) {
+                    securityInput.disabled = true;
+                    securityGuessBtn.disabled = true;
+                    showModal("Access Granted!", `You've cracked the code in ${securityTries} tries!`, () => {
+                        securityLevel++;
+                        securityLevelSpan.textContent = securityLevel;
+                        generateSecurityCode();
+                    });
+                } else {
+                    const codeArray = securityCode.split('');
+                    const guessArray = guess.split('');
+                    const feedback = [];
+                    const codeCounts = {};
+                    codeArray.forEach(d => codeCounts[d] = (codeCounts[d] || 0) + 1);
+
+                    // Check for correct position (green dots)
+                    for (let i = 0; i < codeArray.length; i++) {
+                        if (codeArray[i] === guessArray[i]) {
+                            feedback.push('green');
+                            codeCounts[codeArray[i]]--;
+                        }
+                    }
+
+                    // Check for correct digit, wrong position (orange dots)
+                    for (let i = 0; i < guessArray.length; i++) {
+                        if (codeArray[i] !== guessArray[i] && codeCounts[guessArray[i]] > 0) {
+                            feedback.push('orange');
+                            codeCounts[guessArray[i]]--;
+                        }
+                    }
+
+                    // Fill remaining with gray dots
+                    while (feedback.length < codeArray.length) {
+                        feedback.push('gray');
+                    }
+
+                    feedback.forEach(color => {
+                        const dot = document.createElement('div');
+                        dot.className = `feedback-dot ${color}`;
+                        securityFeedbackDiv.appendChild(dot);
+                    });
+                    
+                    securityInput.value = '';
+                }
+            }
+            generateSecurityCode();
+
+            // --- Game 5: Localization Explorer ---
+            const locStartBtn = document.getElementById('locStartBtn');
+            const locScoreSpan = document.getElementById('locScore');
+            const locLevelSpan = document.getElementById('locLevel');
+            const translationWordDiv = document.getElementById('translationWord');
+            const translationOptionsDiv = document.getElementById('translationOptions');
+            let locScore = 0;
+            let locLevel = 1;
+            const translations = [
+                { word: "Hello", correct: "Bonjour", options: ["Au revoir", "Merci", "Salut"], lang: "French" },
+                { word: "World", correct: "Welt", options: ["Auto", "Hund", "Haus"], lang: "German" },
+                { word: "Computer", correct: "คอมพิวเตอร์", options: ["โทรศัพท์", "ปากกา", "หนังสือ"], lang: "Thai" },
+                { word: "Testing", correct: "प्रतिक्रिया", options: ["सत्यापन", "विकास", "डिज़ाइन"], lang: "Hindi" },
+                { word: "Bug", correct: "Баг", options: ["Программа", "Функция", "Ошибка"], lang: "Russian" },
+                { word: "Quality", correct: "品質", options: ["機能", "計画", "実行"], lang: "Japanese" }
+            ];
+
+            function startLocGame() {
+                locScore = 0;
+                locLevel = 1;
+                locScoreSpan.textContent = locScore;
+                locLevelSpan.textContent = locLevel;
+                nextLocRound();
+            }
+
+            function nextLocRound() {
+                if (locLevel > translations.length) {
+                    showModal("Localization Master!", `You've completed all levels with a score of ${locScore}!`, () => {
+                        locStartBtn.textContent = 'Restart Game';
+                        locStartBtn.disabled = false;
+                        locLevel = 1; // Reset for replay
+                    });
+                    return;
+                }
+                const currentLevel = translations[locLevel - 1];
+                translationWordDiv.textContent = currentLevel.word;
+                translationOptionsDiv.innerHTML = '';
+                const allOptions = [...currentLevel.options, currentLevel.correct];
+                allOptions.sort(() => Math.random() - 0.5);
+                allOptions.forEach(option => {
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-blue';
+                    button.textContent = option;
+                    button.onclick = () => handleLocClick(option === currentLevel.correct);
+                    translationOptionsDiv.appendChild(button);
+                });
+            }
+
+            function handleLocClick(isCorrect) {
+                if (isCorrect) {
+                    locScore++;
+                    locLevel++;
+                    locScoreSpan.textContent = locScore;
+                    locLevelSpan.textContent = locLevel;
+                    showModal("Correct!", `You've successfully translated the term!`, nextLocRound);
+                } else {
+                    showModal("Incorrect!", "That's not the right translation. Try again.");
+                }
+            }
+
+            locStartBtn.addEventListener('click', startLocGame);
+            startLocGame();
+
+            // --- Game 6: Recovery Hero ---
+            const recStartBtn = document.getElementById('recStartBtn');
+            const recLevelSpan = document.getElementById('recLevel');
+            const recStatusSpan = document.getElementById('recStatus');
+            const recoverySequenceDiv = document.getElementById('recoverySequence');
+            const recoveryInputDiv = document.getElementById('recoveryInput');
+            let recLevel = 1;
+            let sequence = [];
+            let inputSequence = [];
+            let isPlaying = false;
+            const colors = ['red', 'blue', 'green', 'yellow'];
+            const MAX_LEVEL = 5;
+
+            function startRecGame() {
+                recLevel = 1;
+                recLevelSpan.textContent = recLevel;
+                playSequence();
+            }
+
+            function playSequence() {
+                sequence = [];
+                inputSequence = [];
+                recStatusSpan.textContent = "Memorize...";
+                const sequenceLength = 2 + recLevel;
+                for (let i = 0; i < sequenceLength; i++) {
+                    sequence.push(colors[Math.floor(Math.random() * colors.length)]);
+                }
+                recoverySequenceDiv.innerHTML = '';
+                recoveryInputDiv.innerHTML = '';
+                let i = 0;
+                const interval = setInterval(() => {
+                    if (i < sequence.length) {
+                        const box = document.createElement('div');
+                        box.style.backgroundColor = sequence[i];
+                        box.className = 'w-10 h-10 rounded-lg';
+                        recoverySequenceDiv.appendChild(box);
+                        setTimeout(() => recoverySequenceDiv.innerHTML = '', 500);
+                        i++;
+                    } else {
+                        clearInterval(interval);
+                        recStatusSpan.textContent = "Your turn!";
+                        createInputButtons();
+                    }
+                }, 1000);
+            }
+
+            function createInputButtons() {
+                colors.forEach(color => {
+                    const button = document.createElement('button');
+                    button.style.backgroundColor = color;
+                    button.className = 'w-10 h-10 rounded-lg cursor-pointer';
+                    button.onclick = () => handleRecClick(color);
+                    recoveryInputDiv.appendChild(button);
+                });
+                isPlaying = true;
+            }
+
+            function handleRecClick(color) {
+                if (!isPlaying) return;
+                inputSequence.push(color);
+                if (inputSequence[inputSequence.length - 1] !== sequence[inputSequence.length - 1]) {
+                    showModal("System Failure!", `You failed to restore the system. Try again!`, startRecGame);
+                    isPlaying = false;
+                } else if (inputSequence.length === sequence.length) {
+                    recLevel++;
+                    recLevelSpan.textContent = recLevel;
+                    if (recLevel > MAX_LEVEL) {
+                       showModal("Recovery Guru!", "You've proven your skills. All systems are stable!");
+                       startRecGame();
+                    } else {
+                        showModal("System Restored!", `Level ${recLevel - 1} complete!`, playSequence);
+                    }
+                    isPlaying = false;
+                }
+            }
+            recStartBtn.addEventListener('click', startRecGame);
+            startRecGame();
+
+
+            // --- Game 7: Accessibility Auditor ---
+            const a11yBoard = document.getElementById('a11yBoard');
+            const a11yStartBtn = document.getElementById('a11yStartBtn');
+            const a11yLevelSpan = document.getElementById('a11yLevel');
+            const a11yBugsFoundSpan = document.getElementById('a11yBugsFound');
+            let a11yLevel = 1;
+            let a11yBugsFound = 0;
+            const a11yLevels = [
+                { bugs: 2, total: 6, bugTypes: ['contrast', 'contrast'] },
+                { bugs: 3, total: 9, bugTypes: ['contrast', 'contrast', 'icon'] },
+                { bugs: 4, total: 12, bugTypes: ['contrast', 'contrast', 'icon', 'icon'] }
+            ];
+
+            function startA11yGame() {
+                a11yLevel = 1;
+                a11yBugsFound = 0;
+                a11yLevelSpan.textContent = a11yLevel;
+                a11yBugsFoundSpan.textContent = a11yBugsFound;
+                generateA11yLevel();
+            }
+
+            function generateA11yLevel() {
+                const levelConfig = a11yLevels[a11yLevel - 1];
+                if (!levelConfig) {
+                    showModal("Audit Complete!", `You've successfully audited all levels!`, startA11yGame);
+                    return;
+                }
+                a11yBoard.innerHTML = '';
+                const bugsToPlace = [...levelConfig.bugTypes];
+                const elements = [];
+                for (let i = 0; i < levelConfig.total; i++) {
+                    const element = document.createElement('div');
+                    element.className = 'w-full h-full rounded-lg flex items-center justify-center text-lg font-bold transition-all';
+                    let isBug = false;
+
+                    if (bugsToPlace.length > 0 && Math.random() > 0.5) {
+                        const bugType = bugsToPlace.pop();
+                        element.classList.add('a11y-bugged');
+                        isBug = true;
+                        if (bugType === 'contrast') {
+                            element.classList.add('bg-white', 'text-gray-200'); // Low contrast
+                            element.textContent = 'Button';
+                        } else if (bugType === 'icon') {
+                            element.classList.add('bg-blue-500', 'text-white');
+                            element.textContent = '❌'; // Placeholder for bad icon
+                        }
+                    } else {
+                        element.classList.add('bg-gray-400', 'text-gray-800'); // Good contrast
+                        element.textContent = '✅';
+                    }
+                    element.dataset.isBug = isBug ? 'true' : 'false';
+                    elements.push(element);
+                }
+                elements.sort(() => Math.random() - 0.5);
+                elements.forEach(el => a11yBoard.appendChild(el));
+                a11yBoard.onclick = handleA11yClick;
+            }
+
+            function handleA11yClick(e) {
+                if (e.target.dataset.isBug === 'true') {
+                    e.target.dataset.isBug = 'false';
+                    e.target.textContent = '✅';
+                    e.target.classList.remove('a11y-bugged', 'bg-white', 'text-gray-200');
+                    e.target.classList.add('bg-gray-400', 'text-gray-800');
+                    e.target.onclick = null;
+                    a11yBugsFound++;
+                    a11yBugsFoundSpan.textContent = a11yBugsFound;
+                    
+                    const levelConfig = a11yLevels[a11yLevel - 1];
+                    if (a11yBugsFound === levelConfig.bugs) {
+                        showModal("Level Complete!", `You found all the bugs in level ${a11yLevel}!`, () => {
+                            a11yLevel++;
+                            a11yBugsFound = 0;
+                            a11yLevelSpan.textContent = a11yLevel;
+                            a11yBugsFoundSpan.textContent = a11yBugsFound;
+                            generateA11yLevel();
+                        });
+                    }
+                } else {
+                    showModal("No Bug Found", "This element is compliant. Look for another bug.");
+                }
+            }
+            a11yStartBtn.addEventListener('click', startA11yGame);
+            startA11yGame();
+
+
+            // --- Game 8: Interoperability Tester ---
+            const interopStartBtn = document.getElementById('interopStartBtn');
+            const interopLevelSpan = document.getElementById('interopLevel');
+            const interopStatusSpan = document.getElementById('interopStatus');
+            const interopShape = document.getElementById('interopShape');
+            const moveA = document.getElementById('moveA');
+            const moveB = document.getElementById('moveB');
+            let interopLevel = 1;
+            const interopLevels = [
+                { correctButton: 'A', transform: 'translate(100px, 0px)' },
+                { correctButton: 'B', transform: 'scale(1.5) translate(50px, 50px)' },
+                { correctButton: 'A', transform: 'rotate(45deg) scale(0.8) translate(100px, 100px)' }
+            ];
+
+            function startInteropGame() {
+                interopLevel = 1;
+                interopLevelSpan.textContent = interopLevel;
+                interopShape.style.transform = 'translate(-50%, -50%)'; // Reset position
+                interopShape.style.left = '50%';
+                interopShape.style.top = '50%';
+                interopStatusSpan.textContent = 'Ready';
+                moveA.onclick = () => handleInteropClick('A');
+                moveB.onclick = () => handleInteropClick('B');
+            }
+
+            function handleInteropClick(button) {
+                const levelConfig = interopLevels[interopLevel - 1];
+                if (!levelConfig) return;
+
+                if (button === levelConfig.correctButton) {
+                    interopShape.style.transform = levelConfig.transform;
+                    interopShape.style.transition = 'transform 0.5s ease-in-out';
+                    interopStatusSpan.textContent = 'Success!';
+                    setTimeout(() => {
+                        interopLevel++;
+                        interopLevelSpan.textContent = interopLevel;
+                        if (interopLevel > interopLevels.length) {
+                            showModal("Interoperability Champion!", "You have passed all cross-browser tests.", startInteropGame);
+                        } else {
+                            showModal("Level Complete!", "Moving to the next browser!", () => {
+                                interopShape.style.transition = 'none';
+                                interopShape.style.transform = 'translate(-50%, -50%)';
+                                interopShape.style.left = '50%';
+                                interopShape.style.top = '50%';
+                                interopStatusSpan.textContent = 'Ready';
+                            });
+                        }
+                    }, 1000);
+                } else {
+                    showModal("Test Failed!", "That vendor prefix didn't work. Try again.");
+                }
+            }
+            interopStartBtn.addEventListener('click', startInteropGame);
+            startInteropGame();
+
+
+            // --- Game 9: Performance Profiler ---
+            const perfBoard = document.getElementById('perfBoard');
+            const perfStartBtn = document.getElementById('perfStartBtn');
+            const perfLevelSpan = document.getElementById('perfLevel');
+            const perfLeaksClearedSpan = document.getElementById('perfLeaksCleared');
+            let perfLevel = 1;
+            let perfLeaksCleared = 0;
+            let perfInterval = null;
+            const perfLevels = [
+                { leaksToClear: 10, spawnRate: 1000 },
+                { leaksToClear: 15, spawnRate: 800 },
+                { leaksToClear: 20, spawnRate: 600 },
+                { leaksToClear: 25, spawnRate: 500 }
+            ];
+
+            function startPerfGame() {
+                perfLevel = 1;
+                perfLeaksCleared = 0;
+                perfLevelSpan.textContent = perfLevel;
+                perfLeaksClearedSpan.textContent = perfLeaksCleared;
+                perfBoard.innerHTML = '';
+                spawnLeaks();
+            }
+
+            function spawnLeaks() {
+                const levelConfig = perfLevels[perfLevel - 1];
+                if (!levelConfig) {
+                    showModal("System Optimized!", "You have successfully cleared all performance bottlenecks.", startPerfGame);
+                    return;
+                }
+                if (perfInterval) clearInterval(perfInterval);
+                perfInterval = setInterval(() => {
+                    if (perfLeaksCleared >= levelConfig.leaksToClear) {
+                        perfLevel++;
+                        perfLeaksCleared = 0;
+                        perfLevelSpan.textContent = perfLevel;
+                        perfLeaksClearedSpan.textContent = perfLeaksCleared;
+                        clearInterval(perfInterval);
+                        showModal("Level Up!", `Level ${perfLevel - 1} complete. Time to profile the next system!`, spawnLeaks);
+                        return;
+                    }
+                    const leak = document.createElement('div');
+                    const size = Math.floor(Math.random() * 20) + 20;
+                    leak.className = 'leak cursor-pointer';
+                    leak.style.width = `${size}px`;
+                    leak.style.height = `${size}px`;
+                    leak.style.left = `${Math.random() * (perfBoard.offsetWidth - size)}px`;
+                    leak.style.top = `${Math.random() * (perfBoard.offsetHeight - size)}px`;
+                    leak.onclick = () => {
+                        perfLeaksCleared++;
+                        perfLeaksClearedSpan.textContent = perfLeaksCleared;
+                        leak.remove();
+                    };
+                    perfBoard.appendChild(leak);
+                }, levelConfig.spawnRate);
+            }
+
+            perfStartBtn.addEventListener('click', startPerfGame);
+            startPerfGame();
+        };
+    </script>
+</body>
+</html>
