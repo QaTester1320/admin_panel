@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaxy Defender</title>
+    <!-- Use a modern, pixel-like font for an arcade feel -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --primary-color: #00ffc8;
+            --secondary-color: #ff9900;
+            --danger-color: #ff4500;
+            --player-color: #39FF14; /* Neon Green */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background: #161b22;
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            box-shadow: 0 0 20px var(--primary-color);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px var(--primary-color);
+        }
+
+        canvas {
+            background-color: #0d1117;
+            border: 2px solid var(--primary-color);
+            border-radius: 5px;
+            box-shadow: inset 0 0 10px rgba(0, 255, 200, 0.5);
+        }
+
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 600px;
+            margin-top: 15px;
+            font-size: 0.8rem;
+        }
+        
+        #message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(22, 27, 34, 0.9);
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 0 20px var(--primary-color);
+            display: none;
+            z-index: 100;
+        }
+
+        #message-box h2 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            text-shadow: 0 0 5px var(--primary-color);
+        }
+
+        #message-box p {
+            margin: 10px 0 20px;
+            font-size: 1rem;
+        }
+
+        #message-box button {
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            font-family: 'Press Start 2P', cursive;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        #message-box button:hover {
+            background-color: #00e0b3;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.2rem;
+            }
+            #message-box h2 {
+                font-size: 1.5rem;
+            }
+            #message-box p, #message-box button {
+                font-size: 0.8rem;
+            }
+            .info-panel {
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1>GALAXY DEFENDER</h1>
+    <canvas id="gameCanvas"></canvas>
+    <div class="info-panel">
+        <div id="score">Score: 0</div>
+        <div id="level">Level: 1</div>
+    </div>
+</div>
+
+<!-- Custom message box for game state -->
+<div id="message-box">
+    <h2 id="message-title"></h2>
+    <p id="message-text"></p>
+    <button id="message-button"></button>
+</div>
+
+<script>
+    window.onload = function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        let gameActive = false;
+        let score = 0;
+        let level = 1;
+
+        // Player properties
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 50,
+            size: 30,
+            speed: 5,
+            color: '#39FF14' // Neon Green
+        };
+
+        // Bullet properties
+        let bullets = [];
+        const bulletSpeed = 7;
+        const bulletSize = 5;
+        const bulletColor = '#39FF14';
+
+        // Enemy properties
+        let enemies = [];
+        let enemySpeed = 2;
+        let enemySpawnRate = 120;
+        let frameCount = 0;
+
+        // Particles for explosions
+        let particles = [];
+
+        // Stars for the background
+        const stars = [];
+        const starCount = 100;
+        for (let i = 0; i < starCount; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2,
+                speed: Math.random() * 0.5 + 0.1
+            });
+        }
+
+        // Keyboard controls
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.key === ' ' && gameActive) {
+                e.preventDefault();
+                shootBullet();
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Touch controls
+        let touchStartX = null;
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                touchStartX = e.touches[0].clientX;
+                shootBullet();
+            }
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                const touchEndX = e.touches[0].clientX;
+                const deltaX = touchEndX - touchStartX;
+                player.x += deltaX * 0.5;
+                touchStartX = touchEndX;
+
+                // Clamp player position
+                if (player.x < 0) player.x = 0;
+                if (player.x > canvas.width - player.size) player.x = canvas.width - player.size;
+            }
+        });
+
+        // Get UI elements
+        const scoreDisplay = document.getElementById('score');
+        const levelDisplay = document.getElementById('level');
+        const messageBox = document.getElementById('message-box');
+        const messageTitle = document.getElementById('message-title');
+        const messageText = document.getElementById('message-text');
+        const messageButton = document.getElementById('message-button');
+        
+        // Show message box with given details
+        function showMessage(title, text, buttonText, buttonAction) {
+            messageTitle.textContent = title;
+            messageText.innerHTML = text;
+            messageButton.textContent = buttonText;
+            messageButton.onclick = buttonAction;
+            messageBox.style.display = 'block';
+        }
+
+        // Hide message box
+        function hideMessage() {
+            messageBox.style.display = 'none';
+        }
+
+        // Game over function
+        function gameOver() {
+            gameActive = false;
+            bullets.length = 0;
+            enemies.length = 0;
+            particles.length = 0;
+            showMessage(
+                'Game Over!',
+                `Your score: ${score}<br>You reached Level: ${level}`,
+                'Play Again',
+                startGame
+            );
+        }
+
+        // Start the game
+        function startGame() {
+            hideMessage();
+            gameActive = true;
+            score = 0;
+            level = 1;
+            enemySpeed = 2;
+            enemySpawnRate = 120;
+            enemies = [];
+            bullets = [];
+            particles = [];
+            player.x = canvas.width / 2;
+            // Set player position to be closer to the bottom
+            player.y = canvas.height - 40;
+            updateUI();
+            gameLoop();
+        }
+
+        // Check for level up
+        function checkLevelUp() {
+            const newLevel = Math.floor(score / 10) + 1;
+            if (newLevel > level) {
+                level = newLevel;
+                enemySpeed += 0.5;
+                if (enemySpawnRate > 30) {
+                    enemySpawnRate -= 10;
+                }
+                updateUI();
+            }
+        }
+
+        // Update UI displays
+        function updateUI() {
+            scoreDisplay.textContent = `Score: ${score}`;
+            levelDisplay.textContent = `Level: ${level}`;
+        }
+
+        // Player movement logic
+        function movePlayer() {
+            if (keys['ArrowLeft'] || keys['a']) {
+                player.x -= player.speed;
+            }
+            if (keys['ArrowRight'] || keys['d']) {
+                player.x += player.speed;
+            }
+            // Clamp player position
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width - player.size) player.x = canvas.width - player.size;
+        }
+
+        // Draw the player spaceship (a triangle pointing upwards)
+        function drawPlayer() {
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.moveTo(player.x + player.size / 2, player.y);
+            ctx.lineTo(player.x, player.y + player.size);
+            ctx.lineTo(player.x + player.size, player.y + player.size);
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        // Create a shooting sound effect
+        function playShootSound() {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 500;
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        }
+
+        // Shoot a new bullet
+        function shootBullet() {
+            bullets.push({
+                x: player.x + player.size / 2,
+                y: player.y,
+                size: bulletSize
+            });
+            playShootSound();
+        }
+
+        // Update and draw bullets
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].y -= bulletSpeed;
+                if (bullets[i].y < 0) {
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+
+        function drawBullets() {
+            ctx.fillStyle = bulletColor;
+            bullets.forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Spawn a new enemy
+        function spawnEnemy() {
+            const size = Math.random() * 20 + 15;
+            const speed = enemySpeed * (1 + (Math.random() - 0.5) * 0.4);
+            enemies.push({
+                x: Math.random() * (canvas.width - size),
+                y: -size,
+                size: size,
+                speed: speed,
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: Math.random() * 0.05 - 0.025,
+                color: '#ff4500' // Orange-red
+            });
+        }
+
+        // Draw a simple enemy shape (a square)
+        function drawEnemy(enemy) {
+            ctx.fillStyle = enemy.color;
+            ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+        }
+
+        // Update and draw enemies
+        function updateEnemies() {
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                enemies[i].y += enemies[i].speed;
+
+                // Check for collision with player
+                const dx = player.x + player.size / 2 - enemies[i].x - enemies[i].size / 2;
+                const dy = player.y + player.size / 2 - enemies[i].y - enemies[i].size / 2;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < player.size / 2 + enemies[i].size / 2) {
+                    gameOver();
+                    return;
+                }
+                
+                if (enemies[i].y > canvas.height) {
+                    enemies.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawEnemies() {
+             enemies.forEach(enemy => {
+                drawEnemy(enemy);
+            });
+        }
+
+        // Create a particle explosion
+        function createExplosion(x, y) {
+            const explosionSound = audioCtx.createOscillator();
+            explosionSound.type = 'triangle';
+            explosionSound.frequency.setValueAtTime(100, audioCtx.currentTime);
+            explosionSound.frequency.exponentialRampToValueAtTime(1, audioCtx.currentTime + 0.5);
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            explosionSound.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            explosionSound.start(audioCtx.currentTime);
+            explosionSound.stop(audioCtx.currentTime + 0.5);
+
+            for (let i = 0; i < 30; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    size: Math.random() * 3 + 1,
+                    speedX: Math.random() * 4 - 2,
+                    speedY: Math.random() * 4 - 2,
+                    color: `hsl(${Math.random() * 360}, 100%, 70%)`,
+                    life: 1
+                });
+            }
+        }
+
+        // Update and draw particles
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].speedX;
+                particles[i].y += particles[i].speedY;
+                particles[i].life -= 0.05;
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${p.life})`;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            });
+        }
+
+        // Collision detection between bullets and enemies
+        function checkCollisions() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const dx = bullets[i].x - enemies[j].x;
+                    const dy = bullets[i].y - enemies[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < bullets[i].size + enemies[j].size / 2) {
+                        createExplosion(enemies[j].x, enemies[j].y);
+                        bullets.splice(i, 1);
+                        enemies.splice(j, 1);
+                        score += 1;
+                        checkLevelUp();
+                        break; 
+                    }
+                }
+            }
+        }
+
+        // Draw and update the scrolling stars background
+        function updateStars() {
+            ctx.fillStyle = 'white';
+            stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+        }
+
+        // Main game loop
+        function gameLoop() {
+            if (!gameActive) {
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            updateStars();
+            
+            frameCount++;
+            if (frameCount % enemySpawnRate === 0) {
+                spawnEnemy();
+            }
+
+            movePlayer();
+            updateBullets();
+            updateEnemies();
+            updateParticles();
+            checkCollisions();
+
+            drawPlayer();
+            drawBullets();
+            drawEnemies();
+            drawParticles();
+            updateUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function init() {
+            canvas.width = Math.min(window.innerWidth * 0.9, 600);
+            canvas.height = Math.min(window.innerHeight * 0.7, 500);
+            player.x = canvas.width / 2 - player.size / 2;
+            
+            showMessage(
+                'Galaxy Defender',
+                'Your mission: Defend the galaxy from the invading alien ships! Use the Arrow Keys or A/D to move, and the Spacebar to shoot. On mobile, swipe to move and tap to shoot. Survive as long as you can!',
+                'Start Game',
+                startGame
+            );
+            
+            updateUI();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Responsive canvas resize
+        window.addEventListener('resize', init);
+        
+        init();
+    };
+</script>
+
+</body>
+</html>
