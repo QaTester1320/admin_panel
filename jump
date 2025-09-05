@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Jumper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            background-color: #2d3748;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+            touch-action: none;
+            max-width: 90%;
+            height: auto;
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            max-width: 80%;
+        }
+        .message-box h2 {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #48bb78;
+        }
+        .message-box p {
+            font-size: 1rem;
+            margin-top: 0.5rem;
+            color: white;
+        }
+        .message-box button {
+            margin-top: 1rem;
+            background-color: #48bb78;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .message-box button:hover {
+            background-color: #38a169;
+        }
+        .game-info {
+            margin-top: 1.5rem;
+            text-align: center;
+            font-size: 1.25rem;
+            color: #a0aec0;
+        }
+        .score-display, .level-display {
+            display: inline-block;
+            margin: 0 1rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-800 flex flex-col items-center justify-center p-4">
+    <h1 class="text-4xl font-bold mb-4 text-green-400">Super Jumper</h1>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div class="game-info mt-4 flex flex-col sm:flex-row justify-center">
+        <div class="score-display text-gray-300">Score: <span id="score">0</span></div>
+        <div class="level-display text-gray-300 mt-2 sm:mt-0">Level: <span id="level">1</span></div>
+    </div>
+    
+    <!-- Custom Message Box -->
+    <div id="messageBox" class="message-box hidden">
+        <h2 id="messageTitle"></h2>
+        <p id="messageText"></p>
+        <button id="messageButton">OK</button>
+    </div>
+
+    <script>
+        // Game Constants
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game State
+        let player = { x: 50, y: canvas.height - 70, width: 20, height: 20, yVelocity: 0, gravity: 0.5 };
+        let obstacles = [];
+        let score = 0;
+        let level = 1;
+        let isJumping = false;
+        let isGameOver = false;
+        let isMessageShowing = false;
+        let gameLoopId;
+
+        // UI elements
+        const scoreElement = document.getElementById('score');
+        const levelElement = document.getElementById('level');
+        const messageBox = document.getElementById('messageBox');
+        const messageTitle = document.getElementById('messageTitle');
+        const messageText = document.getElementById('messageText');
+        const messageButton = document.getElementById('messageButton');
+
+        // Functions
+        function resetGame() {
+            player.y = canvas.height - 70;
+            player.yVelocity = 0;
+            obstacles = [];
+            score = 0;
+            level = 1;
+            isJumping = false;
+            isGameOver = false;
+            isMessageShowing = false;
+            updateUI();
+            startGameLoop();
+            showMessage("Level 1", "Press SPACE to jump and start the game!", () => {
+                // No action needed, just close the message
+            });
+        }
+
+        function showMessage(title, text, buttonCallback) {
+            if (isMessageShowing) return;
+            isMessageShowing = true;
+            messageTitle.textContent = title;
+            messageText.textContent = text;
+            messageBox.classList.remove('hidden');
+            messageButton.onclick = () => {
+                messageBox.classList.add('hidden');
+                isMessageShowing = false;
+                if (buttonCallback) {
+                    buttonCallback();
+                }
+            };
+        }
+
+        function updateUI() {
+            scoreElement.textContent = score;
+            levelElement.textContent = level;
+        }
+
+        function drawPlayer() {
+            ctx.fillStyle = '#48bb78';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = '#f56565';
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+        }
+
+        function update() {
+            if (isGameOver || isMessageShowing) {
+                return;
+            }
+
+            // Player movement
+            player.yVelocity += player.gravity;
+            player.y += player.yVelocity;
+
+            // Ground collision
+            if (player.y + player.height > canvas.height - 50) {
+                player.y = canvas.height - 50 - player.height;
+                player.yVelocity = 0;
+                isJumping = false;
+            }
+
+            // Obstacle movement
+            obstacles.forEach(obstacle => {
+                obstacle.x -= 3 + level;
+            });
+
+            // Remove off-screen obstacles
+            obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
+
+            // Generate new obstacles
+            if (Math.random() < 0.015) {
+                let obstacleWidth = 20 + Math.random() * 20;
+                obstacles.push({
+                    x: canvas.width,
+                    y: canvas.height - 50 - obstacleWidth,
+                    width: obstacleWidth,
+                    height: obstacleWidth
+                });
+            }
+
+            // Collision detection
+            obstacles.forEach(obstacle => {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    endGame();
+                }
+            });
+
+            // Score and Level
+            score += 1;
+            if (score > 0 && score % 1000 === 0) {
+                level++;
+                showMessage(`Level ${level}`, "You've reached a new level! The game will get faster now.", () => {
+                    // Start next level
+                });
+            }
+
+            updateUI();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPlayer();
+            drawObstacles();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        function startGameLoop() {
+            cancelAnimationFrame(gameLoopId);
+            gameLoop();
+        }
+
+        function endGame() {
+            isGameOver = true;
+            cancelAnimationFrame(gameLoopId);
+            showMessage("Game Over", `Your score: ${score}<br>Your level: ${level}`, () => {
+                resetGame();
+            });
+        }
+
+        // Event Listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !isJumping && !isMessageShowing) {
+                e.preventDefault();
+                isJumping = true;
+                player.yVelocity = -10;
+            }
+        });
+
+        // Initial setup
+        window.onload = function() {
+            resetGame();
+        };
+
+    </script>
+</body>
+</html>
