@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sweetshop Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff4d94;
+            --primary-hover: #e64586;
+            --bg-light: #fdf2f7;
+            --white: #ffffff;
+            --text-dark: #2d2d2d;
+            --text-muted: #666;
+            --border: #eee;
+            --sidebar-width: 240px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Mona Sans', sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-dark); height: 100vh; display: flex; overflow: hidden; }
+
+        /* --- UI Sections --- */
+        #login-page { position: fixed; inset: 0; background: var(--bg-light); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .login-card { background: var(--white); padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; text-align: center; }
+        #main-layout { display: none; width: 100%; height: 100%; }
+        .sidebar { width: var(--sidebar-width); background: var(--white); border-right: 1px solid var(--border); padding: 20px 0; display: flex; flex-direction: column; }
+        .nav-item { padding: 15px 25px; cursor: pointer; font-weight: 600; color: var(--text-muted); transition: 0.2s; }
+        .nav-item.active { color: var(--primary); background: #fff0f6; border-right: 4px solid var(--primary); }
+        .content-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .header { background: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .page-content { padding: 30px; }
+
+        /* --- Tables & Stats --- */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .stat-card { background: var(--white); padding: 25px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .stat-card p { font-size: 32px; font-weight: 700; color: var(--primary); }
+        
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #fafafa; font-size: 13px; color: var(--text-muted); }
+
+        .btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-secondary { background: #eee; color: #333; }
+        
+        .form-group { text-align: left; margin-bottom: 15px; position: relative; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px; }
+        input, select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; outline: none; }
+        
+        .password-cell { display: flex; align-items: center; gap: 10px; }
+        .eye-icon { cursor: pointer; font-size: 14px; }
+
+        /* --- Custom Modals --- */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 420px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .modal-footer { display: flex; gap: 10px; margin-top: 20px; justify-content: center; }
+        
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-pending { background: #fff4e5; color: #b7791f; }
+        .status-shipped { background: #e6fffa; color: #2c7a7b; }
+        .status-delivered { background: #ebf8ff; color: #2b6cb0; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="login-page">
+        <div class="login-card">
+            <h1 style="color: var(--primary)">Sweetshop</h1>
+            <h2 style="margin-bottom: 20px;">Admin Login</h2>
+            <form id="login-form">
+                <div class="form-group"><label>Username</label><input type="text" id="username" required></div>
+                <div class="form-group"><label>Password</label><input type="password" id="password" required></div>
+                <button type="submit" class="btn" style="width: 100%">Log In</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-layout">
+        <aside class="sidebar">
+            <h2 style="padding: 0 25px 20px; color: var(--primary);">Sweetshop</h2>
+            <div class="nav-item active" onclick="showPage('dashboard')">Dashboard</div>
+            <div class="nav-item" onclick="showPage('orders')">Orders</div>
+            <div id="nav-managers" class="nav-item" onclick="showPage('managers')">Managers</div>
+        </aside>
+
+        <main class="content-area">
+            <header class="header">
+                <div id="panel-title" style="font-weight: 700;">DASHBOARD</div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span id="user-display" style="font-size: 14px; color: var(--text-muted);"></span>
+                    <button onclick="logout()" style="color: var(--primary); border: none; background: none; cursor: pointer; font-weight: 600;">Logout</button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div id="page-dashboard" class="page">
+                    <div class="stats-grid">
+                        <div class="stat-card"><h3>Total Orders</h3><p id="stat-total">0</p></div>
+                        <div class="stat-card"><h3>Pending Orders</h3><p id="stat-pending">0</p></div>
+                        <div class="stat-card"><h3>Managers</h3><p id="stat-managers">0</p></div>
+                    </div>
+                </div>
+
+                <div id="page-orders" class="page hidden">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                        <h3>Order List</h3>
+                        <button class="btn" onclick="openOrderModal()">+ Create Order</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="order-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="page-managers" class="page hidden">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                        <h3>Manager Accounts</h3>
+                        <button class="btn" onclick="openManagerModal()">+ Create Manager</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>Username</th><th>Password</th><th>Actions</th></tr></thead>
+                        <tbody id="manager-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="order-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="order-modal-title">Order Details</h3><br>
+            <form id="order-form">
+                <input type="hidden" id="edit-order-id">
+                <div class="form-group"><label>Customer Name</label><input type="text" id="cust-name" required></div>
+                <div class="form-group"><label>Order Date</label><input type="date" id="order-date" required></div>
+                <div class="form-group"><label>Amount ($)</label><input type="number" id="order-amt" required></div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="order-status">
+                        <option value="pending">pending</option>
+                        <option value="shipped">shipped</option>
+                        <option value="delivered">delivered</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button>
+                    <button type="submit" class="btn">Save Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="manager-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="manager-modal-title">Manager Details</h3><br>
+            <form id="manager-form">
+                <input type="hidden" id="edit-manager-idx">
+                <div class="form-group"><label>Username</label><input type="text" id="m-user" required></div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div style="position: relative;">
+                        <input type="password" id="m-pass" required>
+                        <span style="position: absolute; right: 10px; top: 12px; cursor: pointer;" onclick="togglePass('m-pass')">👁️</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button>
+                    <button type="submit" class="btn">Save Manager</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="alert-modal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <h3 id="alert-title">Notification</h3>
+            <div id="alert-body" style="margin: 20px 0;"></div>
+            <div class="modal-footer" id="alert-footer">
+                <button class="btn" onclick="closeModals()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PERSISTENCE HELPERS
+        const getStorage = (key, fallback) => JSON.parse(localStorage.getItem(key)) || fallback;
+        const setStorage = (key, val) => localStorage.setItem(key, JSON.stringify(val));
+
+        let orders = getStorage('ss_orders', [
+            { id: 1, customer: 'Alice Johnson', date: '2026-03-04', status: 'pending', amount: 45 },
+            { id: 2, customer: 'Bob Williams', date: '2026-03-02', status: 'shipped', amount: 120 }
+        ]);
+        let managers = getStorage('ss_managers', [
+            { username: 'manager1', password: 'password' }
+        ]);
+
+        // AUTH
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            if(u === 'admin' && p === 'admin') login({username:'admin', role:'admin'});
+            else {
+                const found = managers.find(m => m.username === u && m.password === p);
+                if(found) login({username: u, role: 'manager'});
+                else customAlert('Login Failed', 'Invalid username or password.');
+            }
+        });
+
+        function login(user) {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('main-layout').style.display = 'flex';
+            document.getElementById('user-display').innerText = `User: ${user.username}`;
+            document.getElementById('nav-managers').style.display = (user.role === 'admin') ? 'block' : 'none';
+            showPage('dashboard');
+            updateUI();
+        }
+
+        function logout() {
+            // We do NOT clear localStorage here so data persists for the next login
+            location.reload(); 
+        }
+
+        // NAVIGATION
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(`page-${id}`).classList.remove('hidden');
+            document.getElementById('panel-title').innerText = id.toUpperCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                if(item.innerText.toLowerCase() === id) item.classList.add('active');
+            });
+        }
+
+        // UI SYNC
+        function updateUI() {
+            setStorage('ss_orders', orders);
+            setStorage('ss_managers', managers);
+
+            document.getElementById('stat-total').innerText = orders.length;
+            document.getElementById('stat-pending').innerText = orders.filter(o => o.status === 'pending').length;
+            document.getElementById('stat-managers').innerText = managers.length;
+
+            const orderBody = document.getElementById('order-table-body');
+            orderBody.innerHTML = orders.map(o => `
+                <tr>
+                    <td>#${o.id}</td>
+                    <td>${o.customer}</td>
+                    <td>${o.date}</td>
+                    <td>$${o.amount}</td>
+                    <td><span class="status-badge status-${o.status}">${o.status}</span></td>
+                    <td>
+                        <button onclick="viewOrder(${o.id})">👁️</button>
+                        <button onclick="openOrderModal(${o.id})">✏️</button>
+                        <button onclick="confirmDelete('order', ${o.id})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            const managerBody = document.getElementById('manager-table-body');
+            managerBody.innerHTML = managers.map((m, idx) => `
+                <tr>
+                    <td>${m.username}</td>
+                    <td class="password-cell">
+                        <input type="password" value="${m.password}" id="pass-${idx}" readonly style="border:none; background:none; width:80px;">
+                        <span class="eye-icon" onclick="togglePass('pass-${idx}')">👁️</span>
+                    </td>
+                    <td>
+                        <button onclick="openManagerModal(${idx})">✏️</button>
+                        <button onclick="confirmDelete('manager', ${idx})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // MODALS & ACTIONS
+        function customAlert(title, body) {
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-body').innerHTML = body;
+            document.getElementById('alert-footer').innerHTML = `<button class="btn" onclick="closeModals()">OK</button>`;
+            document.getElementById('alert-modal').style.display = 'flex';
+        }
+
+        function confirmDelete(type, id) {
+            document.getElementById('alert-title').innerText = "Confirm Delete";
+            document.getElementById('alert-body').innerText = `Are you sure you want to delete this ${type}?`;
+            document.getElementById('alert-footer').innerHTML = `
+                <button class="btn btn-secondary" onclick="closeModals()">Cancel</button>
+                <button class="btn" style="background:red;" onclick="executeDelete('${type}', ${id})">Delete</button>
+            `;
+            document.getElementById('alert-modal').style.display = 'flex';
+        }
+
+        function executeDelete(type, id) {
+            if(type === 'order') orders = orders.filter(o => o.id !== id);
+            else managers.splice(id, 1);
+            closeModals(); updateUI();
+        }
+
+        function viewOrder(id) {
+            const o = orders.find(ord => ord.id === id);
+            const content = `
+                <div style="text-align:left; font-size:14px;">
+                    <p><strong>Order ID:</strong> #${o.id}</p>
+                    <p><strong>Customer:</strong> ${o.customer}</p>
+                    <p><strong>Date:</strong> ${o.date}</p>
+                    <p><strong>Amount:</strong> $${o.amount}</p>
+                    <p><strong>Status:</strong> ${o.status}</p>
+                </div>`;
+            customAlert("Order Summary", content);
+        }
+
+        // CRUD FORMS
+        function openOrderModal(id = null) {
+            document.getElementById('order-form').reset();
+            document.getElementById('edit-order-id').value = id || '';
+            if(id) {
+                const o = orders.find(ord => ord.id === id);
+                document.getElementById('cust-name').value = o.customer;
+                document.getElementById('order-date').value = o.date;
+                document.getElementById('order-amt').value = o.amount;
+                document.getElementById('order-status').value = o.status;
+            }
+            document.getElementById('order-modal').style.display = 'flex';
+        }
+
+        document.getElementById('order-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-order-id').value;
+            const data = {
+                customer: document.getElementById('cust-name').value,
+                date: document.getElementById('order-date').value,
+                amount: document.getElementById('order-amt').value,
+                status: document.getElementById('order-status').value
+            };
+            if(id) {
+                const idx = orders.findIndex(o => o.id == id);
+                orders[idx] = { ...orders[idx], ...data };
+            } else {
+                data.id = orders.length ? Math.max(...orders.map(o => o.id)) + 1 : 1;
+                orders.push(data);
+            }
+            closeModals(); updateUI();
+        });
+
+        function openManagerModal(idx = null) {
+            document.getElementById('manager-form').reset();
+            document.getElementById('edit-manager-idx').value = idx !== null ? idx : '';
+            if(idx !== null) {
+                document.getElementById('m-user').value = managers[idx].username;
+                document.getElementById('m-pass').value = managers[idx].password;
+            }
+            document.getElementById('manager-modal').style.display = 'flex';
+        }
+
+        document.getElementById('manager-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const idx = document.getElementById('edit-manager-idx').value;
+            const data = {
+                username: document.getElementById('m-user').value,
+                password: document.getElementById('m-pass').value
+            };
+            if(idx !== "") managers[idx] = data;
+            else managers.push(data);
+            closeModals(); updateUI();
+        });
+
+        // HELPERS
+        function togglePass(id) {
+            const el = document.getElementById(id);
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+    </script>
+</body>
+</html>
