@@ -311,13 +311,23 @@
             initChart(); updateUI();
         };
 
-        function showPage(id) {
-            document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
-            document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-            document.getElementById('page-'+id).classList.remove('hidden');
-            document.getElementById('panel-title').innerText = id.toUpperCase();
-            updateUI();
+       function showPage(id) {
+
+    document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
+
+    document.querySelectorAll('.nav-item').forEach(n=>{
+        n.classList.remove('active');
+
+        if(n.getAttribute("onclick").includes(id)){
+            n.classList.add('active');
         }
+    });
+
+    document.getElementById('page-'+id).classList.remove('hidden');
+    document.getElementById('panel-title').innerText = id.toUpperCase();
+
+    updateUI();
+}
 
         function updateUI() {
             setStore('sw_orders', orders); setStore('sw_prods', products); setStore('sw_cats', categories);
