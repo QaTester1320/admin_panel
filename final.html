@@ -24,7 +24,7 @@
 
         /* --- Layout --- */
         #login-page { position: fixed; inset: 0; background: var(--bg-light); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .login-card { background: var(--white); padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; text-align: center; }
+        .login-card { background: var(--white); padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; text-align: center; font-weight: bold; }
         #main-layout { display: none; width: 100%; height: 100%; }
         .sidebar { width: var(--sidebar-width); background: var(--white); border-right: 1px solid var(--border); padding: 20px 0; display: flex; flex-direction: column; }
         .nav-item { padding: 15px 25px; cursor: pointer; font-weight: 600; color: var(--text-muted); transition: 0.2s; }
@@ -81,7 +81,7 @@
     <div id="login-page">
         <div class="login-card">
             <h1 style="color: var(--primary)">Sweetshop</h1>
-            <p style="font-size: 12px; margin: 10px 0; color: var(--primary);">admin / admin</p>
+            <p style="font-size: 12px; margin: 10px 0; color: var(--primary);">username & pass : admin</p>
             <form id="login-form">
                 <div class="form-group"><label>User</label><input type="text" id="username" value="admin"></div>
                 <div class="form-group"><label>Pass</label><input type="password" id="password" value="admin"></div>
