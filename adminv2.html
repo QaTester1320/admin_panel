@@ -399,7 +399,10 @@ tbody tr:hover {
             if(u==='admin'&&p==='admin') currentAdmin = true;
             else if(!managers.find(m=>m.user===u && m.pass===p)) return notify('Login failed');
             document.getElementById('login-page').style.display='none'; document.getElementById('main-layout').style.display='flex';
-            document.getElementById('nav-managers').style.display = currentAdmin ? 'block' : 'none';
+      const navMgr = document.getElementById('nav-managers');
+if(navMgr){
+    navMgr.style.display = currentAdmin ? 'block' : 'none';
+}
             initChart(); updateUI();
         };
 
