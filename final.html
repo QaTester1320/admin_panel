@@ -26,14 +26,14 @@
         #login-page { position: fixed; inset: 0; background: var(--bg-light); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .login-card { background: var(--white); padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; text-align: center; }
         #main-layout { display: none; width: 100%; height: 100%; }
-        .sidebar { width: var(--sidebar-width); background: var(--white); border-right: 1px solid var(--border); padding: 20px 0; display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar { width: var(--sidebar-width); background: var(--white); border-right: 1px solid var(--border); padding: 20px 0; display: flex; flex-direction: column; }
         .nav-item { padding: 15px 25px; cursor: pointer; font-weight: 600; color: var(--text-muted); transition: 0.2s; }
         .nav-item.active { color: var(--primary); background: #fff0f6; border-right: 4px solid var(--primary); }
         .content-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
         .header { background: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
         .page-content { padding: 30px; }
 
-        /* --- Components --- */
+        /* --- UI Components --- */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .stat-card { background: var(--white); padding: 20px; border-radius: 10px; text-align: center; border: 1px solid var(--border); }
         .stat-card p { font-size: 22px; font-weight: 700; color: var(--primary); }
@@ -49,11 +49,10 @@
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
         th { background: #fafafa; font-size: 12px; color: var(--text-muted); }
 
-        .btn { background: var(--primary); color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+        .btn { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
         .btn-secondary { background: #eee; color: #333; }
-        .btn-danger { background: #ff4d4d; color: white; }
         
-        .form-group { text-align: left; margin-bottom: 12px; position: relative; }
+        .form-group { text-align: left; margin-bottom: 12px; }
         label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px; }
         input, select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; }
 
@@ -71,10 +70,10 @@
     <div id="custom-alert"></div>
     <div id="custom-confirm">
         <div class="confirm-box">
-            <p id="confirm-msg" style="margin-bottom: 20px; font-weight: 600;">Are you sure?</p>
+            <p id="confirm-msg" style="margin-bottom: 20px; font-weight: 600;"></p>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button class="btn" id="confirm-yes">Yes</button>
-                <button class="btn btn-secondary" id="confirm-no">No</button>
+                <button class="btn" id="confirm-yes">Yes, Delete</button>
+                <button class="btn btn-secondary" id="confirm-no">Cancel</button>
             </div>
         </div>
     </div>
@@ -82,7 +81,7 @@
     <div id="login-page">
         <div class="login-card">
             <h1 style="color: var(--primary)">Sweetshop</h1>
-            <p style="font-size: 12px; margin: 10px 0; color: var(--primary);">username & pass : admin</p>
+            <p style="font-size: 12px; margin: 10px 0; color: var(--primary);">admin / admin</p>
             <form id="login-form">
                 <div class="form-group"><label>User</label><input type="text" id="username" value="admin"></div>
                 <div class="form-group"><label>Pass</label><input type="password" id="password" value="admin"></div>
@@ -116,7 +115,6 @@
                         <div class="stat-card"><h3>Low Stock</h3><p id="stat-low-stock">0</p></div>
                         <div class="stat-card"><h3>Clients</h3><p id="stat-customers">0</p></div>
                     </div>
-                    
                     <div class="dashboard-row">
                         <div class="card-box" style="height: 350px;"><canvas id="revenueChart"></canvas></div>
                         <div class="card-box">
@@ -124,14 +122,12 @@
                             <div id="low-stock-list" style="overflow-y: auto; max-height: 280px;"></div>
                         </div>
                     </div>
-
-                    <h3>Activity Log</h3><br>
-                    <div id="activity-log" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid var(--border); max-height: 200px; overflow-y: auto;"></div>
                 </div>
 
                 <div id="page-orders" class="page hidden">
                     <div class="controls">
                         <input type="text" class="search-input" id="search-orders" placeholder="Search customer name..." oninput="updateUI()">
+                        <button class="btn btn-secondary" onclick="exportOrders()">CSV</button>
                         <button class="btn" onclick="openModal('order')">+ New Order</button>
                     </div>
                     <table>
@@ -141,21 +137,19 @@
                 </div>
 
                 <div id="page-products" class="page hidden">
-                    <div class="controls"><input type="text" class="search-input" id="search-products" placeholder="Search..." oninput="updateUI()"><button class="btn" onclick="openModal('product')">+ Product</button></div>
-                    <table><thead><tr><th>Name</th><th>Cat</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead><tbody id="product-table-body"></tbody></table>
+                    <div class="controls">
+                        <input type="text" class="search-input" id="search-products" placeholder="Search products..." oninput="updateUI()">
+                        <button class="btn" onclick="openModal('product')">+ Product</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>Name</th><th>Cat</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
+                        <tbody id="product-table-body"></tbody>
+                    </table>
                 </div>
-                <div id="page-categories" class="page hidden">
-                    <div class="controls"><input type="text" class="search-input" id="search-categories" placeholder="Search..." oninput="updateUI()"><button class="btn" onclick="openModal('category')">+ Category</button></div>
-                    <table><thead><tr><th>Name</th><th>Desc</th><th>Actions</th></tr></thead><tbody id="category-table-body"></tbody></table>
-                </div>
-                <div id="page-customers" class="page hidden">
-                    <div class="controls"><input type="text" class="search-input" id="search-customers" placeholder="Search..." oninput="updateUI()"><button class="btn" onclick="openModal('customer')">+ Client</button></div>
-                    <table><thead><tr><th>Name</th><th>Email</th><th>Actions</th></tr></thead><tbody id="customer-table-body"></tbody></table>
-                </div>
-                <div id="page-managers" class="page hidden">
-                    <div class="controls"><input type="text" class="search-input" id="search-managers" placeholder="Search..." oninput="updateUI()"><button class="btn" onclick="openModal('manager')">+ Admin</button></div>
-                    <table><thead><tr><th>User</th><th>Pass</th><th>Actions</th></tr></thead><tbody id="manager-table-body"></tbody></table>
-                </div>
+
+                <div id="page-categories" class="page hidden"><div class="controls"><input type="text" class="search-input" id="search-categories" placeholder="Search..." oninput="updateUI()"><button class="btn" onclick="openModal('category')">+ Cat</button></div><table><thead><tr><th>Name</th><th>Desc</th><th>Actions</th></tr></thead><tbody id="category-table-body"></tbody></table></div>
+                <div id="page-customers" class="page hidden"><div class="controls"><input type="text" class="search-input" id="search-customers" placeholder="Search..." oninput="updateUI()"><button class="btn" onclick="openModal('customer')">+ Client</button></div><table><thead><tr><th>Name</th><th>Email</th><th>Actions</th></tr></thead><tbody id="customer-table-body"></tbody></table></div>
+                <div id="page-managers" class="page hidden"><div class="controls"><input type="text" class="search-input" id="search-managers" placeholder="Search..." oninput="updateUI()"><button class="btn" onclick="openModal('manager')">+ Admin</button></div><table><thead><tr><th>User</th><th>Pass</th><th>Actions</th></tr></thead><tbody id="manager-table-body"></tbody></table></div>
             </div>
         </main>
     </div>
@@ -167,11 +161,11 @@
             <div class="form-group"><label>Customer</label><input type="text" id="order-cust" required></div>
             <div class="form-group"><label>Date</label><input type="date" id="order-date" required></div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                <div class="form-group"><label>Base ($)</label><input type="number" id="order-amt" step="0.01" required oninput="calcTotal()"></div>
+                <div class="form-group"><label>Base Price ($)</label><input type="number" id="order-amt" step="0.01" required oninput="calcTotal()"></div>
                 <div class="form-group"><label>Tax (%)</label><input type="number" id="order-tax" value="0" oninput="calcTotal()"></div>
             </div>
             <div class="form-group"><label>Discount ($)</label><input type="number" id="order-disc" value="0" oninput="calcTotal()"></div>
-            <div class="form-group"><label>Total ($)</label><input type="text" id="order-total-display" readonly style="background:#f9f9f9;"></div>
+            <div class="form-group"><label>Final Total ($)</label><input type="text" id="order-total-display" readonly style="background:#f9f9f9; font-weight:700;"></div>
             <div class="form-group"><label>Status</label><select id="order-status"><option>pending</option><option>shipped</option><option>delivered</option></select></div>
             <button type="submit" class="btn" style="width:100%">SAVE</button>
             <button type="button" class="btn btn-secondary" style="width:100%; margin-top:5px" onclick="closeModals()">CANCEL</button>
@@ -180,8 +174,8 @@
 
     <div id="modal-summary" class="modal"><div class="modal-content">
         <h3>Order Summary</h3><br>
-        <div id="sum-details" style="line-height: 2;"></div><br>
-        <button class="btn" style="width: 100%;" onclick="closeModals()">CLOSE</button>
+        <div id="sum-details" style="line-height: 2; font-size: 14px;"></div><br>
+        <button class="btn" style="width:100%" onclick="closeModals()">CLOSE</button>
     </div></div>
 
     <div id="modal-product" class="modal"><div class="modal-content"><h3>Product</h3><br><form onsubmit="handleSave(event, 'product')"><input type="hidden" id="product-idx"><div class="form-group"><label>Name</label><input type="text" id="prod-name" required></div><div class="form-group"><label>Cat</label><select id="prod-cat"></select></div><div class="form-group"><label>Price</label><input type="number" id="prod-price" required></div><div class="form-group"><label>Stock</label><input type="number" id="prod-stock" required></div><button class="btn" style="width:100%">SAVE</button></form></div></div>
@@ -198,11 +192,10 @@
         let categories = getStore('sw_cats', []);
         let customers = getStore('sw_custs', []);
         let managers = getStore('sw_mgrs', []);
-        let logs = getStore('sw_logs', []);
         let chart = null, currentAdmin = false;
 
         function notify(m) { const el = document.getElementById('custom-alert'); el.innerText = m; el.style.display = 'block'; setTimeout(() => el.style.display='none', 2500); }
-        function confirmDelete(cb) { const el = document.getElementById('custom-confirm'); el.style.display='flex'; document.getElementById('confirm-yes').onclick=()=>{ el.style.display='none'; cb(); }; document.getElementById('confirm-no').onclick=()=>el.style.display='none'; }
+        function confirmDelete(cb) { const el = document.getElementById('custom-confirm'); document.getElementById('confirm-msg').innerText = "Delete this record?"; el.style.display='flex'; document.getElementById('confirm-yes').onclick=()=>{ el.style.display='none'; cb(); }; document.getElementById('confirm-no').onclick=()=>el.style.display='none'; }
 
         function calcTotal() {
             const b = parseFloat(document.getElementById('order-amt').value) || 0;
@@ -215,7 +208,7 @@
             e.preventDefault();
             const u = document.getElementById('username').value, p = document.getElementById('password').value;
             if(u==='admin'&&p==='admin') currentAdmin = true;
-            else if(!managers.find(m=>m.user===u && m.pass===p)) return notify('Invalid Login');
+            else if(!managers.find(m=>m.user===u && m.pass===p)) return notify('Login Failed');
             document.getElementById('login-page').style.display='none'; document.getElementById('main-layout').style.display='flex';
             document.getElementById('nav-managers').style.display = currentAdmin ? 'block' : 'none';
             initChart(); updateUI();
@@ -231,7 +224,7 @@
 
         function updateUI() {
             setStore('sw_orders', orders); setStore('sw_prods', products); setStore('sw_cats', categories);
-            setStore('sw_custs', customers); setStore('sw_mgrs', managers); setStore('sw_logs', logs);
+            setStore('sw_custs', customers); setStore('sw_mgrs', managers);
 
             const oS = document.getElementById('search-orders').value.toLowerCase();
             const pS = document.getElementById('search-products').value.toLowerCase();
@@ -239,36 +232,37 @@
             const cuS = document.getElementById('search-customers').value.toLowerCase();
             const mS = document.getElementById('search-managers').value.toLowerCase();
 
-            // Order Table with RESTORED View Button (👁️)
+            // Render Orders with Search logic
             document.getElementById('order-table-body').innerHTML = orders.filter(o=>o.customer.toLowerCase().includes(oS)).map(o => `
-                <tr><td>#${o.id}</td><td>${o.customer}</td><td>${o.date}</td><td>$${o.amount}</td>
+                <tr><td>#${o.id}</td><td>${o.customer}</td><td>${o.date}</td><td>$${o.total}</td>
                 <td><span class="status-badge status-${o.status}">${o.status}</span></td>
                 <td>
-                    <button onclick="showSummary(${o.id})">👁️</button>
-                    <button onclick="openModal('order', ${o.id})">✏️</button>
-                    <button onclick="handleDelete('order', ${o.id})">🗑️</button>
+                    <button class="btn btn-secondary" onclick="showSummary(${o.id})">👁️</button>
+                    <button class="btn btn-secondary" onclick="openModal('order', ${o.id})">✏️</button>
+                    <button class="btn btn-secondary" onclick="handleDelete('order', ${o.id})">🗑️</button>
                 </td></tr>`).join('');
 
-            document.getElementById('product-table-body').innerHTML = products.filter(p=>p.name.toLowerCase().includes(pS)).map((p, i) => `<tr><td>${p.name}</td><td>${p.cat}</td><td>$${p.price}</td><td>${p.stock}</td><td><button onclick="openModal('product', ${i})">✏️</button> <button onclick="handleDelete('product', ${i})">🗑️</button></td></tr>`).join('');
-            document.getElementById('category-table-body').innerHTML = categories.filter(c=>c.name.toLowerCase().includes(cS)).map((c, i) => `<tr><td>${c.name}</td><td>${c.desc}</td><td><button onclick="openModal('category', ${i})">✏️</button> <button onclick="handleDelete('category', ${i})">🗑️</button></td></tr>`).join('');
-            document.getElementById('customer-table-body').innerHTML = customers.filter(c=>c.name.toLowerCase().includes(cuS)).map((c, i) => `<tr><td>${c.name}</td><td>${c.email}</td><td><button onclick="openModal('customer', ${i})">✏️</button> <button onclick="handleDelete('customer', ${i})">🗑️</button></td></tr>`).join('');
-            document.getElementById('manager-table-body').innerHTML = managers.filter(m=>m.user.toLowerCase().includes(mS)).map((m, i) => `<tr><td>${m.user}</td><td>****</td><td><button onclick="openModal('manager', ${i})">✏️</button> <button onclick="handleDelete('manager', ${i})">🗑️</button></td></tr>`).join('');
+            // Render Products with Search
+            document.getElementById('product-table-body').innerHTML = products.filter(p=>p.name.toLowerCase().includes(pS)).map((p, i) => `<tr><td>${p.name}</td><td>${p.cat}</td><td>$${p.price}</td><td>${p.stock}</td><td><button class="btn btn-secondary" onclick="openModal('product', ${i})">✏️</button> <button class="btn btn-secondary" onclick="handleDelete('product', ${i})">🗑️</button></td></tr>`).join('');
 
-            // Stock Alert Display
+            // Generic search for other tables
+            document.getElementById('category-table-body').innerHTML = categories.filter(c=>c.name.toLowerCase().includes(cS)).map((c, i) => `<tr><td>${c.name}</td><td>${c.desc}</td><td><button class="btn btn-secondary" onclick="openModal('category', ${i})">✏️</button> <button class="btn btn-secondary" onclick="handleDelete('category', ${i})">🗑️</button></td></tr>`).join('');
+            document.getElementById('customer-table-body').innerHTML = customers.filter(c=>c.name.toLowerCase().includes(cuS)).map((c, i) => `<tr><td>${c.name}</td><td>${c.email}</td><td><button class="btn btn-secondary" onclick="openModal('customer', ${i})">✏️</button> <button class="btn btn-secondary" onclick="handleDelete('customer', ${i})">🗑️</button></td></tr>`).join('');
+            document.getElementById('manager-table-body').innerHTML = managers.filter(m=>m.user.toLowerCase().includes(mS)).map((m, i) => `<tr><td>${m.user}</td><td>****</td><td><button class="btn btn-secondary" onclick="openModal('manager', ${i})">✏️</button> <button class="btn btn-secondary" onclick="handleDelete('manager', ${i})">🗑️</button></td></tr>`).join('');
+
             const lowStock = products.filter(p => p.stock < 5);
             document.getElementById('stat-low-stock').innerText = lowStock.length;
-            document.getElementById('low-stock-list').innerHTML = lowStock.length ? lowStock.map(p => `<div class="stock-alert-item"><span>${p.name}</span> <b>${p.stock} left</b></div>`).join('') : "<p style='font-size:12px;color:#999'>All stock levels okay.</p>";
+            document.getElementById('low-stock-list').innerHTML = lowStock.length ? lowStock.map(p => `<div class="stock-alert-item"><span>${p.name}</span> <b>${p.stock} left</b></div>`).join('') : "<p style='font-size:12px;color:#999;padding:10px'>All stock levels okay.</p>";
 
             document.getElementById('stat-total').innerText = orders.length;
-            document.getElementById('stat-revenue').innerText = '$' + orders.reduce((a,b)=>a+Number(b.amount),0).toFixed(2);
+            document.getElementById('stat-revenue').innerText = '$' + orders.reduce((a,b)=>a+Number(b.total),0).toFixed(2);
             document.getElementById('stat-customers').innerText = customers.length;
-            document.getElementById('activity-log').innerHTML = logs.slice(-10).reverse().map(l => `<div style="font-size:12px; padding:4px 0; border-bottom:1px dotted #eee">${l}</div>`).join('');
             if(chart) updateChart();
         }
 
         function showSummary(id) {
             const o = orders.find(x=>x.id==id);
-            document.getElementById('sum-details').innerHTML = `<b>Customer:</b> ${o.customer}<br><b>ID:</b> #${o.id}<br><b>Date:</b> ${o.date}<br><b>Total:</b> $${o.amount}<br><b>Status:</b> ${o.status.toUpperCase()}`;
+            document.getElementById('sum-details').innerHTML = `<b>Customer:</b> ${o.customer}<br><b>ID:</b> #${o.id}<br><b>Date:</b> ${o.date}<br><b>Base:</b> $${o.base}<br><b>Tax:</b> ${o.tax}%<br><b>Discount:</b> $${o.disc}<br><b>Final Total:</b> $${o.total}<br><b>Status:</b> ${o.status.toUpperCase()}`;
             document.getElementById('modal-summary').style.display='flex';
         }
 
@@ -276,7 +270,7 @@
             e.preventDefault();
             if(type==='order') {
                 const id = document.getElementById('order-id').value;
-                const data = { id: id?parseInt(id):Date.now(), customer: document.getElementById('order-cust').value, date: document.getElementById('order-date').value, amount: document.getElementById('order-total-display').value, status: document.getElementById('order-status').value };
+                const data = { id: id ? parseInt(id) : Date.now(), customer: document.getElementById('order-cust').value, date: document.getElementById('order-date').value, base: document.getElementById('order-amt').value, tax: document.getElementById('order-tax').value, disc: document.getElementById('order-disc').value, total: document.getElementById('order-total-display').value, status: document.getElementById('order-status').value };
                 if(id) orders[orders.findIndex(x=>x.id==id)] = data; else orders.push(data);
             } else if(type==='product') {
                 const idx = document.getElementById('product-idx').value;
@@ -295,7 +289,7 @@
                 const data = { user: document.getElementById('mgr-user').value, pass: document.getElementById('mgr-pass').value };
                 if(idx!=="") managers[idx]=data; else managers.push(data);
             }
-            logs.push(`[${new Date().toLocaleTimeString()}] Saved ${type}`); notify('Saved'); closeModals(); updateUI();
+            notify('Record Saved'); closeModals(); updateUI();
         }
 
         function handleDelete(type, id) {
@@ -313,7 +307,17 @@
             const m = document.getElementById('modal-' + type); m.style.display = 'flex';
             if(type==='product') document.getElementById('prod-cat').innerHTML = categories.map(c=>`<option>${c.name}</option>`).join('');
             if(val !== null) {
-                if(type==='order') { const o=orders.find(x=>x.id==val); document.getElementById('order-id').value=o.id; document.getElementById('order-cust').value=o.customer; document.getElementById('order-date').value=o.date; document.getElementById('order-amt').value=o.amount; document.getElementById('order-status').value=o.status; calcTotal(); }
+                if(type==='order') { 
+                    const o = orders.find(x=>x.id==val); 
+                    document.getElementById('order-id').value = o.id; 
+                    document.getElementById('order-cust').value = o.customer; 
+                    document.getElementById('order-date').value = o.date; 
+                    document.getElementById('order-amt').value = o.base; 
+                    document.getElementById('order-tax').value = o.tax;
+                    document.getElementById('order-disc').value = o.disc;
+                    document.getElementById('order-status').value = o.status; 
+                    calcTotal(); 
+                }
                 if(type==='product') { const p=products[val]; document.getElementById('product-idx').value=val; document.getElementById('prod-name').value=p.name; document.getElementById('prod-cat').value=p.cat; document.getElementById('prod-price').value=p.price; document.getElementById('prod-stock').value=p.stock; }
                 if(type==='category') { document.getElementById('cat-idx').value=val; document.getElementById('cat-name').value=categories[val].name; document.getElementById('cat-desc').value=categories[val].desc; }
                 if(type==='customer') { document.getElementById('cust-idx').value=val; document.getElementById('cust-name-val').value=customers[val].name; document.getElementById('cust-email').value=customers[val].email; }
@@ -321,10 +325,20 @@
             } else { m.querySelectorAll('form').forEach(f=>f.reset()); m.querySelectorAll('input[type="hidden"]').forEach(h=>h.value=""); }
         }
 
+        function exportOrders() { 
+            let csv = "ID,Customer,Date,Total,Status\n"; 
+            orders.forEach(o => csv += `${o.id},${o.customer},${o.date},${o.total},${o.status}\n`);
+            const b = new Blob([csv], {type: 'text/csv'}); 
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(b); 
+            a.download = 'sweetshop_orders.csv'; 
+            a.click(); 
+        }
+
         function closeModals() { document.querySelectorAll('.modal').forEach(m=>m.style.display='none'); }
         function logout() { location.reload(); }
         function initChart() { const ctx = document.getElementById('revenueChart').getContext('2d'); chart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [{ label: 'Revenue', data: [], borderColor: '#ff4d94', tension: 0.1 }] }, options: { maintainAspectRatio: false } }); }
-        function updateChart() { const dts = [...new Set(orders.map(o=>o.date))].sort(); chart.data.labels = dts; chart.data.datasets[0].data = dts.map(d => orders.filter(o=>o.date===d).reduce((s,o)=>s+Number(o.amount),0)); chart.update(); }
+        function updateChart() { const dts = [...new Set(orders.map(o=>o.date))].sort(); chart.data.labels = dts; chart.data.datasets[0].data = dts.map(d => orders.filter(o=>o.date===d).reduce((s,o)=>s+Number(o.total),0)); chart.update(); }
     </script>
 </body>
 </html>
