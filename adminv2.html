@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sweetshop Admin Panel - Enterprise</title>
+    <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #ff4d94;
+            --primary-hover: #e64586;
+            --bg-light: #fdf2f7;
+            --white: #ffffff;
+            --text-dark: #2d2d2d;
+            --text-muted: #666;
+            --border: #eee;
+            --sidebar-width: 240px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Mona Sans', sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-dark); height: 100vh; display: flex; overflow: hidden; }
+
+        /* --- UI Sections --- */
+        #login-page { position: fixed; inset: 0; background: var(--bg-light); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .login-card { background: var(--white); padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; text-align: center; }
+        #main-layout { display: none; width: 100%; height: 100%; }
+        .sidebar { width: var(--sidebar-width); background: var(--white); border-right: 1px solid var(--border); padding: 20px 0; display: flex; flex-direction: column; overflow-y: auto; }
+        .nav-item { padding: 15px 25px; cursor: pointer; font-weight: 600; color: var(--text-muted); transition: 0.2s; }
+        .nav-item.active { color: var(--primary); background: #fff0f6; border-right: 4px solid var(--primary); }
+        .content-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .header { background: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .page-content { padding: 30px; }
+
+        /* --- Stats & Charts --- */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: var(--white); padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .stat-card p { font-size: 24px; font-weight: 700; color: var(--primary); }
+        .chart-container { background: white; padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 1px solid var(--border); height: 300px; }
+
+        /* --- Controls & Tables --- */
+        .controls { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; }
+        .search-input { flex: 1; padding: 10px 15px; border: 1px solid var(--border); border-radius: 8px; outline: none; }
+
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #fafafa; font-size: 13px; color: var(--text-muted); }
+
+        .btn { background: var(--primary); color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-secondary { background: #eee; color: #333; }
+        
+        .form-group { text-align: left; margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px; }
+        input, select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; outline: none; }
+        
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 450px; max-height: 90vh; overflow-y: auto; }
+        
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+        .status-pending { background: #fff4e5; color: #b7791f; }
+        .status-shipped { background: #e6fffa; color: #2c7a7b; }
+        .status-delivered { background: #ebf8ff; color: #2b6cb0; }
+        .out-of-stock { color: #e53e3e; font-weight: bold; }
+
+        .activity-feed { background: white; padding: 20px; border-radius: 10px; border: 1px solid var(--border); height: 200px; overflow-y: auto; }
+        .activity-item { padding: 8px 0; border-bottom: 1px dotted #eee; font-size: 12px; color: var(--text-muted); }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="login-page">
+        <div class="login-card">
+            <h1 style="color: var(--primary)">Sweetshop</h1>
+            <p style="margin-bottom: 25px; color: var(--text-muted)">Secure Administration</p>
+            <form id="login-form">
+                <div class="form-group"><label>Username</label><input type="text" id="username" required></div>
+                <div class="form-group"><label>Password</label><input type="password" id="password" required></div>
+                <button type="submit" class="btn" style="width: 100%; justify-content: center;">LOG IN</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-layout">
+        <aside class="sidebar">
+            <h2 style="padding: 0 25px 20px; color: var(--primary);">Sweetshop</h2>
+            <div class="nav-item active" onclick="showPage('dashboard')">Dashboard</div>
+            <div class="nav-item" onclick="showPage('orders')">Orders</div>
+            <div class="nav-item" onclick="showPage('products')">Products</div>
+            <div class="nav-item" onclick="showPage('categories')">Categories</div>
+            <div id="nav-managers" class="nav-item" onclick="showPage('managers')">Managers</div>
+        </aside>
+
+        <main class="content-area">
+            <header class="header">
+                <div id="panel-title" style="font-weight: 700; text-transform: uppercase;">DASHBOARD</div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span id="user-display" style="font-size: 14px; font-weight: 600;"></span>
+                    <button onclick="logout()" class="btn btn-secondary" style="padding: 5px 12px;">Logout</button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div id="page-dashboard" class="page">
+                    <div class="stats-grid">
+                        <div class="stat-card"><h3>Orders</h3><p id="stat-total">0</p></div>
+                        <div class="stat-card"><h3>Revenue</h3><p id="stat-revenue">$0</p></div>
+                        <div class="stat-card"><h3>Items</h3><p id="stat-products">0</p></div>
+                        <div class="stat-card"><h3>Categories</h3><p id="stat-cats">0</p></div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+
+                    <h3>Activity Log</h3><br>
+                    <div class="activity-feed" id="activity-log"></div>
+                </div>
+
+                <div id="page-orders" class="page hidden">
+                    <div class="controls">
+                        <input type="text" class="search-input" id="order-search" placeholder="Filter by customer..." oninput="updateUI()">
+                        <button class="btn" onclick="openOrderModal()">+ New Order</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="order-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="page-products" class="page hidden">
+                    <div class="controls">
+                        <h3>Stock Inventory</h3>
+                        <button class="btn" onclick="openProductModal()" style="margin-left: auto;">+ New Product</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
+                        <tbody id="product-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="page-categories" class="page hidden">
+                    <div class="controls">
+                        <h3>Product Categories</h3>
+                        <button class="btn" onclick="openCategoryModal()" style="margin-left: auto;">+ New Category</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>Category Name</th><th>Description</th><th>Actions</th></tr></thead>
+                        <tbody id="category-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="page-managers" class="page hidden">
+                    <div class="controls"><h3>Staff Management</h3><button class="btn" onclick="openManagerModal()" style="margin-left: auto;">+ New Manager</button></div>
+                    <table>
+                        <thead><tr><th>Username</th><th>Role</th><th>Password</th><th>Actions</th></tr></thead>
+                        <tbody id="manager-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="order-modal" class="modal"><div class="modal-content">
+        <h3>Order Info</h3><br>
+        <form id="order-form">
+            <input type="hidden" id="edit-order-id">
+            <div class="form-group"><label>Customer</label><input type="text" id="cust-name" required></div>
+            <div class="form-group"><label>Date</label><input type="date" id="order-date" required></div>
+            <div class="form-group"><label>Amount ($)</label><input type="number" id="order-amt" required min="1"></div>
+            <div class="form-group"><label>Status</label><select id="order-status"><option value="pending">pending</option><option value="shipped">shipped</option><option value="delivered">delivered</option></select></div>
+            <div style="display:flex; gap:10px; margin-top:20px;"><button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button><button type="submit" class="btn" style="flex:1; justify-content:center;">Save</button></div>
+        </form>
+    </div></div>
+
+    <div id="category-modal" class="modal"><div class="modal-content">
+        <h3>Category Info</h3><br>
+        <form id="category-form">
+            <input type="hidden" id="edit-cat-idx">
+            <div class="form-group"><label>Category Name</label><input type="text" id="cat-name" required></div>
+            <div class="form-group"><label>Description</label><input type="text" id="cat-desc"></div>
+            <div style="display:flex; gap:10px; margin-top:20px;"><button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button><button type="submit" class="btn" style="flex:1; justify-content:center;">Save</button></div>
+        </form>
+    </div></div>
+
+    <div id="product-modal" class="modal"><div class="modal-content">
+        <h3>Product Info</h3><br>
+        <form id="product-form">
+            <input type="hidden" id="edit-prod-idx">
+            <div class="form-group"><label>Name</label><input type="text" id="p-name" required></div>
+            <div class="form-group"><label>Category</label><select id="p-cat-select"></select></div>
+            <div class="form-group"><label>Price ($)</label><input type="number" id="p-price" step="0.01" required></div>
+            <div class="form-group"><label>Stock</label><input type="number" id="p-stock" required></div>
+            <div style="display:flex; gap:10px; margin-top:20px;"><button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button><button type="submit" class="btn" style="flex:1; justify-content:center;">Save</button></div>
+        </form>
+    </div></div>
+
+    <div id="manager-modal" class="modal"><div class="modal-content">
+        <h3>Manager Info</h3><br>
+        <form id="manager-form">
+            <input type="hidden" id="edit-manager-idx">
+            <div class="form-group"><label>Username</label><input type="text" id="m-user" required></div>
+            <div class="form-group"><label>Password</label><div style="position:relative;"><input type="password" id="m-pass" required><span style="position:absolute; right:10px; top:12px; cursor:pointer;" onclick="togglePass('m-pass')">👁️</span></div></div>
+            <div style="display:flex; gap:10px; margin-top:20px;"><button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button><button type="submit" class="btn" style="flex:1; justify-content:center;">Save</button></div>
+        </form>
+    </div></div>
+
+    <div id="alert-modal" class="modal"><div class="modal-content" style="text-align:center;">
+        <h3 id="alert-title">Notice</h3><div id="alert-body" style="margin:20px 0;"></div>
+        <div id="alert-footer"><button class="btn" onclick="closeModals()">OK</button></div>
+    </div></div>
+
+    <script>
+        const getStorage = (k, f) => JSON.parse(localStorage.getItem(k)) || f;
+        const setStorage = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+        let orders = getStorage('ss_orders_v2', [{ id: 1, customer: 'Alice Johnson', date: '2026-03-04', status: 'pending', amount: 45 }]);
+        let managers = getStorage('ss_managers_v2', [{ username: 'manager1', password: 'password' }]);
+        let products = getStorage('ss_prods_v2', [{ name: 'Chocolate Cake', cat: 'Cakes', price: 15.0, stock: 10 }]);
+        let categories = getStorage('ss_cats_v2', [{ name: 'Cakes', desc: 'Freshly baked cakes' }, { name: 'Candy', desc: 'Sweet treats' }]);
+        let logs = getStorage('ss_logs_v2', ["System Ready."]);
+        let myChart = null;
+
+        // AUTH
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const u = document.getElementById('username').value, p = document.getElementById('password').value;
+            if(u === 'admin' && p === 'admin') login({username:'admin', role:'admin'});
+            else {
+                const f = managers.find(m => m.username === u && m.password === p);
+                if(f) login({username: u, role: 'manager'});
+                else customAlert('Denied', 'Invalid Login Credentials');
+            }
+        });
+
+        function login(user) {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('main-layout').style.display = 'flex';
+            document.getElementById('user-display').innerText = user.username.toUpperCase();
+            document.getElementById('nav-managers').style.display = (user.role === 'admin') ? 'block' : 'none';
+            addLog(`User ${user.username} logged in.`);
+            showPage('dashboard');
+            initChart();
+            updateUI();
+        }
+
+        function logout() { location.reload(); }
+
+        // NAVIGATION
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(`page-${id}`).classList.remove('hidden');
+            document.getElementById('panel-title').innerText = id;
+            document.querySelectorAll('.nav-item').forEach(item => { if(item.innerText.toLowerCase() === id) item.classList.add('active'); });
+        }
+
+        // UI CORE
+        function updateUI() {
+            setStorage('ss_orders_v2', orders); setStorage('ss_managers_v2', managers); setStorage('ss_prods_v2', products); setStorage('ss_cats_v2', categories); setStorage('ss_logs_v2', logs);
+
+            const search = document.getElementById('order-search').value.toLowerCase();
+            const filteredOrders = orders.filter(o => o.customer.toLowerCase().includes(search));
+
+            document.getElementById('stat-total').innerText = orders.length;
+            document.getElementById('stat-revenue').innerText = '$' + orders.reduce((sum, o) => sum + Number(o.amount), 0);
+            document.getElementById('stat-products').innerText = products.length;
+            document.getElementById('stat-cats').innerText = categories.length;
+
+            document.getElementById('order-table-body').innerHTML = filteredOrders.map(o => `
+                <tr><td>#${o.id}</td><td>${o.customer}</td><td>${o.date}</td><td>$${o.amount}</td><td><span class="status-badge status-${o.status}">${o.status}</span></td>
+                <td><button onclick="viewOrder(${o.id})">👁️</button><button onclick="openOrderModal(${o.id})">✏️</button><button onclick="confirmDel('order', ${o.id})">🗑️</button></td></tr>`).join('');
+
+            document.getElementById('product-table-body').innerHTML = products.map((p, i) => `
+                <tr><td>${p.name}</td><td>${p.cat}</td><td>$${p.price}</td><td class="${p.stock <= 0 ? 'out-of-stock':''}">${p.stock <= 0 ? 'Out of Stock' : p.stock}</td>
+                <td><button onclick="openProductModal(${i})">✏️</button><button onclick="confirmDel('prod', ${i})">🗑️</button></td></tr>`).join('');
+
+            document.getElementById('category-table-body').innerHTML = categories.map((c, i) => `
+                <tr><td>${c.name}</td><td>${c.desc || '-'}</td>
+                <td><button onclick="openCategoryModal(${i})">✏️</button><button onclick="confirmDel('cat', ${i})">🗑️</button></td></tr>`).join('');
+
+            document.getElementById('manager-table-body').innerHTML = managers.map((m, i) => `
+                <tr><td>${m.username}</td><td>Manager</td><td>••••</td>
+                <td><button onclick="openManagerModal(${i})">✏️</button><button onclick="confirmDel('mgr', ${i})">🗑️</button></td></tr>`).join('');
+
+            document.getElementById('activity-log').innerHTML = logs.slice(-10).reverse().map(l => `<div class="activity-item">${l}</div>`).join('');
+            if(myChart) updateChart();
+        }
+
+        function addLog(msg) { logs.push(`[${new Date().toLocaleTimeString()}] ${msg}`); updateUI(); }
+
+        // CHART LOGIC
+        function initChart() {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Daily Revenue ($)', data: [], backgroundColor: '#ff4d94' }] },
+                options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function updateChart() {
+            const last7Days = [...new Set(orders.map(o => o.date))].sort().slice(-7);
+            const revenueData = last7Days.map(date => orders.filter(o => o.date === date).reduce((sum, o) => sum + Number(o.amount), 0));
+            myChart.data.labels = last7Days;
+            myChart.data.datasets[0].data = revenueData;
+            myChart.update();
+        }
+
+        // MODAL OPENERS
+        function openCategoryModal(idx = null) {
+            document.getElementById('category-form').reset();
+            document.getElementById('edit-cat-idx').value = idx !== null ? idx : '';
+            if(idx !== null) { document.getElementById('cat-name').value = categories[idx].name; document.getElementById('cat-desc').value = categories[idx].desc; }
+            document.getElementById('category-modal').style.display = 'flex';
+        }
+
+        function openProductModal(idx = null) {
+            document.getElementById('product-form').reset();
+            const select = document.getElementById('p-cat-select');
+            select.innerHTML = categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            document.getElementById('edit-prod-idx').value = idx !== null ? idx : '';
+            if(idx !== null) { const p = products[idx]; document.getElementById('p-name').value = p.name; select.value = p.cat; document.getElementById('p-price').value = p.price; document.getElementById('p-stock').value = p.stock; }
+            document.getElementById('product-modal').style.display = 'flex';
+        }
+
+        function openOrderModal(id = null) {
+            document.getElementById('order-form').reset();
+            document.getElementById('edit-order-id').value = id || '';
+            if(id) { const o = orders.find(x => x.id == id); document.getElementById('cust-name').value = o.customer; document.getElementById('order-date').value = o.date; document.getElementById('order-amt').value = o.amount; document.getElementById('order-status').value = o.status; }
+            document.getElementById('order-modal').style.display = 'flex';
+        }
+
+        function openManagerModal(idx = null) {
+            document.getElementById('manager-form').reset();
+            document.getElementById('edit-manager-idx').value = idx !== null ? idx : '';
+            if(idx !== null) { document.getElementById('m-user').value = managers[idx].username; document.getElementById('m-pass').value = managers[idx].password; }
+            document.getElementById('manager-modal').style.display = 'flex';
+        }
+
+        // FORM SUBMISSIONS
+        document.getElementById('category-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const idx = document.getElementById('edit-cat-idx').value;
+            const data = { name: document.getElementById('cat-name').value, desc: document.getElementById('cat-desc').value };
+            if(idx !== "") categories[idx] = data; else categories.push(data);
+            addLog(`Category ${data.name} saved.`); closeModals(); updateUI();
+        });
+
+        document.getElementById('product-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const idx = document.getElementById('edit-prod-idx').value;
+            const data = { name: document.getElementById('p-name').value, cat: document.getElementById('p-cat-select').value, price: document.getElementById('p-price').value, stock: document.getElementById('p-stock').value };
+            if(idx !== "") products[idx] = data; else products.push(data);
+            addLog(`Product ${data.name} saved.`); closeModals(); updateUI();
+        });
+
+        document.getElementById('order-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-order-id').value;
+            const data = { customer: document.getElementById('cust-name').value, date: document.getElementById('order-date').value, amount: document.getElementById('order-amt').value, status: document.getElementById('order-status').value };
+            if(id) { const idx = orders.findIndex(x => x.id == id); orders[idx] = {...orders[idx], ...data}; }
+            else { data.id = orders.length ? Math.max(...orders.map(x => x.id)) + 1 : 1; orders.push(data); }
+            addLog(`Order for ${data.customer} processed.`); closeModals(); updateUI();
+        });
+
+        document.getElementById('manager-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const idx = document.getElementById('edit-manager-idx').value;
+            const data = { username: document.getElementById('m-user').value, password: document.getElementById('m-pass').value };
+            if(idx !== "") managers[idx] = data; else managers.push(data);
+            addLog(`Manager ${data.username} updated.`); closeModals(); updateUI();
+        });
+
+        // HELPERS
+        function customAlert(t, b) { document.getElementById('alert-title').innerText = t; document.getElementById('alert-body').innerHTML = b; document.getElementById('alert-modal').style.display = 'flex'; }
+        
+        function confirmDel(type, id) {
+            document.getElementById('alert-title').innerText = "Confirm Delete";
+            document.getElementById('alert-body').innerText = `Are you sure you want to remove this ${type}?`;
+            document.getElementById('alert-footer').innerHTML = `<button class="btn btn-secondary" onclick="closeModals()">Cancel</button><button class="btn" style="background:red" onclick="executeDel('${type}', ${id})">Delete</button>`;
+            document.getElementById('alert-modal').style.display = 'flex';
+        }
+
+        function executeDel(type, id) {
+            if(type === 'order') orders = orders.filter(x => x.id !== id);
+            else if(type === 'prod') products.splice(id, 1);
+            else if(type === 'cat') categories.splice(id, 1);
+            else managers.splice(id, 1);
+            addLog(`Deleted ${type} record.`); closeModals(); updateUI();
+        }
+
+        function viewOrder(id) {
+            const o = orders.find(x => x.id == id);
+            customAlert("Order View", `<div style="text-align:left">ID: #${o.id}<br>Customer: ${o.customer}<br>Amt: $${o.amount}<br>Status: ${o.status}</div>`);
+        }
+
+        function togglePass(id) { const x = document.getElementById(id); x.type = x.type === 'password' ? 'text' : 'password'; }
+        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+    </script>
+</body>
+</html>
