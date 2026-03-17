@@ -87,7 +87,12 @@
     flex-wrap: wrap;   /* IMPORTANT */
     margin-bottom: 15px;
 }
-        .search-input { flex: 1; padding: 10px 15px; border: 1px solid var(--border); border-radius: 8px; outline: none; }
+      .search-input {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-width: 200px;
+}
 
 ::-webkit-scrollbar {
     width: 8px;
@@ -207,6 +212,7 @@ tbody tr:hover {
                 <div id="page-orders" class="page hidden">
                     <div class="controls">
     <input type="text" class="search-input" id="search-orders" placeholder="Search customer..." oninput="updateUI()">
+                    </div>
 
     <select id="filter-status" onchange="updateUI()">
         <option value="">All Status</option>
