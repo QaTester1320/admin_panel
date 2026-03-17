@@ -81,7 +81,12 @@
         .card-box { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
         .stock-alert-item { padding: 8px; border-bottom: 1px solid #fff0f6; display: flex; justify-content: space-between; font-size: 13px; color: #d00; }
 
-        .controls { display: flex; gap: 12px; margin-bottom: 15px; align-items: center; }
+       .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;   /* IMPORTANT */
+    margin-bottom: 15px;
+}
         .search-input { flex: 1; padding: 10px 15px; border: 1px solid var(--border); border-radius: 8px; outline: none; }
 
 ::-webkit-scrollbar {
