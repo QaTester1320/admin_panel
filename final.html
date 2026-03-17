@@ -28,7 +28,44 @@
         
         #main-layout { display: none; width: 100%; height: 100%; }
         .sidebar { width: var(--sidebar-width); background: var(--white); border-right: 1px solid var(--border); padding: 20px 0; display: flex; flex-direction: column; }
-        .nav-item { padding: 15px 25px; cursor: pointer; font-weight: 600; color: var(--text-muted); transition: 0.2s; }
+     .nav-item {
+    padding: 15px 25px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.25s ease;
+}
+
+.nav-item:hover {
+    background: #fff0f6;
+    color: var(--primary);
+    transform: translateX(3px);
+}
+
+.stat-card {
+    background: var(--white);
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    border: 1px solid var(--border);
+    transition: all 0.25s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+
+
+.page {
+    animation: fadePage 0.3s ease;
+}
+
+@keyframes fadePage {
+    from {opacity:0; transform:translateY(8px);}
+    to {opacity:1; transform:translateY(0);}
+}
         .nav-item.active { color: var(--primary); background: #fff0f6; border-right: 4px solid var(--primary); }
         
         .content-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
@@ -47,10 +84,28 @@
         .controls { display: flex; gap: 12px; margin-bottom: 15px; align-items: center; }
         .search-input { flex: 1; padding: 10px 15px; border: 1px solid var(--border); border-radius: 8px; outline: none; }
 
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f3f3f3;
+}
+
+
+
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
         th { background: #fafafa; font-size: 12px; color: var(--text-muted); text-transform: uppercase; }
 
+tbody tr:hover {
+    background: #fafafa;
+}
         .btn { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
         .btn-secondary { background: #eee; color: #333; }
         
@@ -96,19 +151,36 @@
     <div id="main-layout">
         <aside class="sidebar">
             <h2 style="padding: 0 25px 20px; color: var(--primary);">Sweetshop</h2>
-            <div class="nav-item active" onclick="showPage('dashboard')">Dashboard</div>
-            <div class="nav-item" onclick="showPage('orders')">Orders</div>
-            <div class="nav-item" onclick="showPage('products')">Products</div>
-            <div class="nav-item" onclick="showPage('categories')">Categories</div>
-            <div class="nav-item" onclick="showPage('customers')">Customers</div>
-            <div id="nav-managers" class="nav-item" onclick="showPage('managers')">Managers</div>
+           <div class="nav-item active" onclick="showPage('dashboard')">
+<i class="fas fa-chart-line"></i> Dashboard
+</div>
+
+<div class="nav-item" onclick="showPage('orders')">
+<i class="fas fa-shopping-cart"></i> Orders
+</div>
+
+<div class="nav-item" onclick="showPage('products')">
+<i class="fas fa-box"></i> Products
+</div>
+
+<div class="nav-item" onclick="showPage('categories')">
+<i class="fas fa-tags"></i> Categories
+</div>
+
+<div class="nav-item" onclick="showPage('customers')">
+<i class="fas fa-users"></i> Customers
+</div>
         </aside>
 
         <main class="content-area">
-            <header class="header">
-                <div id="panel-title" style="font-weight:700">DASHBOARD</div>
-                <button onclick="logout()" class="btn btn-secondary">Logout</button>
-            </header>
+          <header class="header">
+    <div id="panel-title" style="font-weight:700">DASHBOARD</div>
+    <div style="display:flex; gap:10px;">
+        <span id="live-clock" style="font-weight:600; color:#666;"></span>
+        <button onclick="toggleTheme()" class="btn btn-secondary">Change Theme</button>
+        <button onclick="logout()" class="btn btn-secondary">Logout</button>
+    </div>
+</header>
 
             <div class="page-content">
                 <div id="page-dashboard" class="page">
@@ -129,10 +201,22 @@
 
                 <div id="page-orders" class="page hidden">
                     <div class="controls">
-                        <input type="text" class="search-input" id="search-orders" placeholder="Search customer name..." oninput="updateUI()">
-                        <button class="btn btn-secondary" onclick="exportOrders()">CSV</button>
-                        <button class="btn" onclick="openModal('order')">+ New Order</button>
-                    </div>
+    <input type="text" class="search-input" id="search-orders" placeholder="Search customer..." oninput="updateUI()">
+
+    <select id="filter-status" onchange="updateUI()">
+        <option value="">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="shipped">Shipped</option>
+        <option value="delivered">Delivered</option>
+    </select>
+
+    <input type="date" id="filter-from" onchange="updateUI()">
+    <input type="date" id="filter-to" onchange="updateUI()">
+
+    <button class="btn btn-secondary" onclick="clearFilters()">Reset</button>
+    <button class="btn btn-secondary" onclick="exportOrders()">CSV</button>
+    <button class="btn" onclick="openModal('order')">+ New Order</button>
+</div>
                     <table>
                         <thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody id="order-table-body"></tbody>
@@ -294,6 +378,26 @@
         function notify(m) { const el = document.getElementById('custom-alert'); el.innerText = m; el.style.display = 'block'; setTimeout(() => el.style.display='none', 2500); }
         function confirmDelete(cb) { const el = document.getElementById('custom-confirm'); el.style.display='flex'; document.getElementById('confirm-yes').onclick=()=>{ el.style.display='none'; cb(); }; document.getElementById('confirm-no').onclick=()=>el.style.display='none'; }
 
+ function animateValue(el, start, end, duration) {
+    let range = end - start;
+    let startTime = null;
+
+    function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        let progress = timestamp - startTime;
+        let value = Math.min(start + range * (progress / duration), end);
+
+        el.innerText = Math.floor(value);
+
+        if (progress < duration) {
+            requestAnimationFrame(step);
+        }
+    }
+
+    requestAnimationFrame(step);
+}
+
+
         function calcTotal() {
             const b = parseFloat(document.getElementById('order-amt').value) || 0;
             const t = parseFloat(document.getElementById('order-tax').value) || 0;
@@ -307,7 +411,10 @@
             if(u==='admin'&&p==='admin') currentAdmin = true;
             else if(!managers.find(m=>m.user===u && m.pass===p)) return notify('Login failed');
             document.getElementById('login-page').style.display='none'; document.getElementById('main-layout').style.display='flex';
-            document.getElementById('nav-managers').style.display = currentAdmin ? 'block' : 'none';
+      const navMgr = document.getElementById('nav-managers');
+if(navMgr){
+    navMgr.style.display = currentAdmin ? 'block' : 'none';
+}
             initChart(); updateUI();
         };
 
@@ -333,14 +440,43 @@
             setStore('sw_orders', orders); setStore('sw_prods', products); setStore('sw_cats', categories);
             setStore('sw_custs', customers); setStore('sw_mgrs', managers);
 
-            const oS = document.getElementById('search-orders').value.toLowerCase();
+const oS = document.getElementById('search-orders').value.toLowerCase();
+const statusFilter = document.getElementById('filter-status').value;
+const fromDate = document.getElementById('filter-from').value;
+const toDate = document.getElementById('filter-to').value;
+
+let filteredOrders = orders.filter(o => {
+
+    let matchSearch = o.customer.toLowerCase().includes(oS);
+
+    let matchStatus = statusFilter ? o.status === statusFilter : true;
+
+    let matchFrom = fromDate ? o.date >= fromDate : true;
+    let matchTo = toDate ? o.date <= toDate : true;
+
+    return matchSearch && matchStatus && matchFrom && matchTo;
+});
             const pS = document.getElementById('search-products').value.toLowerCase();
             const cS = document.getElementById('search-categories').value.toLowerCase();
             const cuS = document.getElementById('search-customers').value.toLowerCase();
             const mS = document.getElementById('search-managers').value.toLowerCase();
 
             // Tables
-            document.getElementById('order-table-body').innerHTML = orders.filter(o=>o.customer.toLowerCase().includes(oS)).map(o => `<tr><td>#${o.id}</td><td>${o.customer}</td><td>${o.date}</td><td>$${o.total}</td><td>${o.status}</td><td><button class="btn btn-secondary" onclick="showSummary(${o.id})">👁️</button> <button class="btn btn-secondary" onclick="openModal('order', ${o.id})">✏️</button> <button class="btn btn-secondary" onclick="handleDelete('order', ${o.id})">🗑️</button></td></tr>`).join('');
+            document.getElementById('order-table-body').innerHTML =
+filteredOrders.map(o => `
+<tr>
+<td>#${o.id}</td>
+<td>${o.customer}</td>
+<td>${o.date}</td>
+<td>$${o.total}</td>
+<td>${o.status}</td>
+<td>
+<button class="btn btn-secondary" onclick="showSummary(${o.id})">👁️</button>
+<button class="btn btn-secondary" onclick="openModal('order', ${o.id})">✏️</button>
+<button class="btn btn-secondary" onclick="handleDelete('order', ${o.id})">🗑️</button>
+</td>
+</tr>
+`).join('');
             document.getElementById('product-table-body').innerHTML = products.filter(p=>p.name.toLowerCase().includes(pS)).map((p, i) => `<tr><td>${p.name}</td><td>${p.cat}</td><td>$${p.price}</td><td>${p.stock}</td><td><button class="btn btn-secondary" onclick="openModal('product', ${i})">✏️</button> <button class="btn btn-secondary" onclick="handleDelete('product', ${i})">🗑️</button></td></tr>`).join('');
             document.getElementById('category-table-body').innerHTML = categories.filter(c=>c.name.toLowerCase().includes(cS)).map((c, i) => `<tr><td>${c.name}</td><td>${c.desc}</td><td><button class="btn btn-secondary" onclick="openModal('category', ${i})">✏️</button> <button class="btn btn-secondary" onclick="handleDelete('category', ${i})">🗑️</button></td></tr>`).join('');
             document.getElementById('customer-table-body').innerHTML = customers.filter(c=>c.name.toLowerCase().includes(cuS)).map((c, i) => `<tr><td>${c.name}</td><td>${c.email}</td><td><button class="btn btn-secondary" onclick="openModal('customer', ${i})">✏️</button> <button class="btn btn-secondary" onclick="handleDelete('customer', ${i})">🗑️</button></td></tr>`).join('');
@@ -350,11 +486,14 @@
             document.getElementById('stat-low-stock').innerText = lowStock.length;
             document.getElementById('low-stock-list').innerHTML = lowStock.length ? lowStock.map(p => `<div class="stock-alert-item"><span>${p.name}</span> <b>${p.stock} left</b></div>`).join('') : "<p style='padding:10px; font-size:12px; color:#999'>Inventory healthy.</p>";
 
-            document.getElementById('stat-total').innerText = orders.length;
+         animateValue(document.getElementById('stat-total'),0,orders.length,600);
             document.getElementById('stat-revenue').innerText = '$' + orders.reduce((a,b)=>a+Number(b.total),0).toFixed(2);
             document.getElementById('stat-customers').innerText = customers.length;
             if(chart) updateChart();
         }
+
+
+
 
         function openModal(type, val = null) {
             const m = document.getElementById('modal-' + type); m.style.display = 'flex';
@@ -404,6 +543,46 @@
             notify('Record Updated'); closeModals(); updateUI();
         }
 
+let currentTheme = "pink";
+
+function toggleTheme(){
+
+    if(currentTheme === "pink"){
+
+        document.documentElement.style.setProperty('--primary', '#2b7cff');
+        document.documentElement.style.setProperty('--primary-hover', '#1f6fe0');
+        document.documentElement.style.setProperty('--bg-light', '#f1f6ff');
+
+        currentTheme = "blue";
+        notify("Blue theme activated");
+
+    } else {
+
+        document.documentElement.style.setProperty('--primary', '#ff4d94');
+        document.documentElement.style.setProperty('--primary-hover', '#e64586');
+        document.documentElement.style.setProperty('--bg-light', '#fdf2f7');
+
+        currentTheme = "pink";
+        notify("Pink theme activated");
+    }
+
+}
+        
+       
+        function clearFilters(){
+    document.getElementById('search-orders').value = "";
+    document.getElementById('filter-status').value = "";
+    document.getElementById('filter-from').value = "";
+    document.getElementById('filter-to').value = "";
+    updateUI();
+}
+        
+        setInterval(()=>{
+    const now = new Date();
+    document.getElementById("live-clock").innerText =
+        now.toLocaleTimeString();
+},1000);
+        
         function handleDelete(type, id) { confirmDelete(() => { if(type==='order') orders=orders.filter(o=>o.id!==id); else if(type==='product') products.splice(id,1); else if(type==='category') categories.splice(id,1); else if(type==='customer') customers.splice(id,1); else if(type==='manager') managers.splice(id,1); notify('Deleted'); updateUI(); }); }
         function showSummary(id) { const o=orders.find(x=>x.id==id); document.getElementById('sum-details').innerHTML=`<b>Order ID:</b> #${o.id}<br><b>Client:</b> ${o.customer}<br><b>Base Price:</b> $${o.base}<br><b>Tax:</b> ${o.tax}%<br><b>Discount:</b> $${o.disc}<br><b>Grand Total:</b> $${o.total}<br><b>Status:</b> ${o.status}`; document.getElementById('modal-summary').style.display='flex'; }
         function exportOrders() { let csv="ID,Customer,Date,Total,Status\n"; orders.forEach(o=>csv+=`${o.id},${o.customer},${o.date},${o.total},${o.status}\n`); const b=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='orders_export.csv'; a.click(); }
